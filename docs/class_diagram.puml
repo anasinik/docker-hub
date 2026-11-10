@@ -1,0 +1,66 @@
+@startuml
+
+enum Role {
+   SuperAdmin
+   Admin
+   RegularUser
+}
+
+enum Badge {
+  VerifiedPublisher
+  SponsoredOSS
+}
+
+class User {
+    username: String
+    password: String
+    email: String
+    role: Role
+    badge: Badge [0..1]
+    passwordChangeRequired: boolean
+}
+
+enum Visibility {
+  Public
+  Private
+}
+
+class Tag {
+  name: String
+  digest: String
+  size: long
+  pushedAt: DateTime
+}
+
+class Repository {
+   name: String
+   description: String
+   visibility: Visibility
+   isOfficial: boolean
+   createAt: DateTime
+   updatedAt: DateTime
+   /starCount: int
+   /registryPath: String
+}
+
+enum LogLevel {
+  Info
+  Warning
+  Error
+}
+
+class LogEntry {
+  timestamp: DateTime
+  message: String
+  level: LogLevel
+}
+
+note bottom of LogEntry
+  Stored in Elasticsearch, not in the relational database.
+end note
+
+User "0..*" --  "0..*" Repository: stars
+User "1" ->  "0..*" Repository: owns
+Repository "1" *-- "0..*" Tag: contains
+
+@enduml
