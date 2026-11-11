@@ -1,14 +1,84 @@
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import UserManager as DjangoUserManager
+from django.db import models
+from django.db.models import Q
+
+
+class Role(models.TextChoices):
+    SUPER_ADMIN = "SUPER_ADMIN", "Super admin"
+    ADMIN = "ADMIN", "Admin"
+    REGULAR_USER = "REGULAR_USER", "Regular user"
+
+
+ADMIN_ROLES = (Role.SUPER_ADMIN, Role.ADMIN)
+
+
+class UserManager(DjangoUserManager):
+    def create_admin(self, username, email=None, password=None, **extra_fields):
+        extra_fields["role"] = Role.ADMIN
+        return self.create_user(username, email, password, **extra_fields)
+
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        extra_fields["role"] = Role.SUPER_ADMIN
+        return super().create_superuser(username, email, password, **extra_fields)
+
+    def admins(self):
+        """Both administrator roles (super admin included)."""
+        return self.filter(role__in=ADMIN_ROLES)
+
+    def regular_users(self):
+        return self.filter(role=Role.REGULAR_USER)
 
 
 class User(AbstractUser):
-    """Custom user model for the application.
+    """Application user.
 
-    Defined at project setup so that ``AUTH_USER_MODEL`` points to it before
-    the first migration; switching to a custom user model later is painful.
-    Domain fields from the class diagram (role, badge, password change flag)
-    are added together with the rest of the model.
+    Access control is driven by ``role``. Django's ``is_superuser`` and
+    ``is_staff`` flags are derived from it on every save, so they never need to
+    be set by hand:
+
+    * SUPER_ADMIN  -> is_superuser=True,  is_staff=True (exactly one may exist)
+    * ADMIN        -> is_superuser=False, is_staff=True
+    * REGULAR_USER -> is_superuser=False, is_staff=False
     """
+
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.REGULAR_USER)
+
+    objects = UserManager()
+
+    class Meta(AbstractUser.Meta):
+        constraints = [
+            models.UniqueConstraint(
+                fields=["role"],
+                condition=Q(role=Role.SUPER_ADMIN),
+                name="unique_super_admin",
+                violation_error_message="A super admin already exists.",
+            ),
+        ]
 
     def __str__(self):
         return self.username
+
+    @property
+    def is_super_admin(self):
+        return self.role == Role.SUPER_ADMIN
+
+    @property
+    def is_admin(self):
+        """True for both administrator roles; the super admin is also an admin."""
+        return self.role in ADMIN_ROLES
+
+    @property
+    def is_regular_user(self):
+        return self.role == Role.REGULAR_USER
+
+    def sync_flags_with_role(self):
+        self.is_superuser = self.is_super_admin
+        self.is_staff = self.is_admin
+
+    def save(self, *args, **kwargs):
+        self.sync_flags_with_role()
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "role" in update_fields:
+            kwargs["update_fields"] = {*update_fields, "is_superuser", "is_staff"}
+        super().save(*args, **kwargs)
