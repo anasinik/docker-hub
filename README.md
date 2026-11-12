@@ -31,8 +31,29 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-The app is then available at http://127.0.0.1:8000/, the admin at
-http://127.0.0.1:8000/admin/ and the health check at http://127.0.0.1:8000/health/.
+The app is then available at http://127.0.0.1:8000/:
+
+| Page | URL |
+| --- | --- |
+| Home | http://127.0.0.1:8000/ |
+| Sign up | http://127.0.0.1:8000/accounts/register/ |
+| Django admin | http://127.0.0.1:8000/admin/ |
+| Health check | http://127.0.0.1:8000/health/ |
+
+`createsuperuser` creates the single super admin and asks for an email, which is required.
+
+## Users and roles
+
+| Role | How the account is created | Notes |
+| --- | --- | --- |
+| Super admin | `createsuperuser` | Only one can exist |
+| Admin | Added by the super admin | Can use the Django admin |
+| Regular user | Signs up at `/accounts/register/` | Default role |
+
+Usernames are 4-30 lowercase letters and digits, because they are also the
+repository namespace (`username/repository`). Names such as `library`, `admin`
+and `official` are reserved and cannot be taken at sign-up. Emails are required
+and unique, ignoring case.
 
 ## Configuration
 

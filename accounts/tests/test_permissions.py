@@ -111,6 +111,7 @@ class AdminSiteAccessTests(TestCase):
             reverse("admin:accounts_user_add"),
             {
                 "username": "root2",
+                "email": "root2@example.com",
                 "role": Role.SUPER_ADMIN,
                 "usable_password": "true",
                 "password1": "An0ther-s3cret-pass",
@@ -130,6 +131,7 @@ class AdminSiteAccessTests(TestCase):
             reverse("admin:accounts_user_add"),
             {
                 "username": "admin",
+                "email": "admin@example.com",
                 "role": Role.ADMIN,
                 "usable_password": "true",
                 "password1": "An0ther-s3cret-pass",

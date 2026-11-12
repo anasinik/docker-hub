@@ -2,6 +2,9 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import UserManager as DjangoUserManager
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
+
+from .validators import USERNAME_MAX_LENGTH, validate_username_format
 
 
 class Role(models.TextChoices):
@@ -42,12 +45,27 @@ class User(AbstractUser):
     * REGULAR_USER -> is_superuser=False, is_staff=False
     """
 
+    username = models.CharField(
+        "username",
+        max_length=USERNAME_MAX_LENGTH,
+        unique=True,
+        validators=[validate_username_format],
+        help_text="4-30 characters. Lowercase letters and digits only.",
+        error_messages={"unique": "A user with that username already exists."},
+    )
+    email = models.EmailField("email address")
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.REGULAR_USER)
 
     objects = UserManager()
 
     class Meta(AbstractUser.Meta):
         constraints = [
+            models.UniqueConstraint(
+                Lower("email"),
+                condition=~Q(email=""),
+                name="unique_user_email_ci",
+                violation_error_message="A user with this email already exists.",
+            ),
             models.UniqueConstraint(
                 fields=["role"],
                 condition=Q(role=Role.SUPER_ADMIN),

@@ -17,6 +17,55 @@ class UserModelTests(TestCase):
         self.assertTrue(user.check_password("s3cret-pass"))
 
 
+class UsernameRulesTests(TestCase):
+    def build_user(self, username):
+        user = User(username=username, email=f"{username}@example.com")
+        user.set_password("s3cret-pass")
+        return user
+
+    def test_valid_usernames(self):
+        for username in ("alic", "alice", "alice2025", "a" * 30):
+            with self.subTest(username=username):
+                self.build_user(username).full_clean()
+
+    def test_invalid_usernames(self):
+        for username in ("abc", "a" * 31, "Alice", "alice.smith", "alice_smith", "alice-smith", "alice smith", "alice@x"):
+            with self.subTest(username=username):
+                with self.assertRaises(ValidationError) as context:
+                    self.build_user(username).full_clean()
+
+                self.assertIn("username", context.exception.message_dict)
+
+    def test_reserved_username_is_allowed_outside_sign_up(self):
+        # Reserved names are only blocked for self-registration.
+        self.build_user("admin").full_clean()
+
+
+class EmailRulesTests(TestCase):
+    def test_email_is_required(self):
+        user = User(username="alice")
+        user.set_password("s3cret-pass")
+
+        with self.assertRaises(ValidationError) as context:
+            user.full_clean()
+
+        self.assertIn("email", context.exception.message_dict)
+
+    def test_email_must_be_unique_ignoring_case(self):
+        User.objects.create_user(username="alice", email="alice@example.com", password="s3cret-pass")
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            User.objects.create_user(username="alice2", email="ALICE@example.com", password="s3cret-pass")
+
+    def test_duplicate_email_fails_validation(self):
+        User.objects.create_user(username="alice", email="alice@example.com", password="s3cret-pass")
+        user = User(username="alice2", email="Alice@Example.com")
+        user.set_password("s3cret-pass")
+
+        with self.assertRaisesMessage(ValidationError, "A user with this email already exists."):
+            user.full_clean()
+
+
 class UserRoleTests(TestCase):
     def test_new_user_is_regular_user_by_default(self):
         user = User.objects.create_user(username="alice", password="s3cret-pass")
@@ -92,7 +141,7 @@ class UserRoleTests(TestCase):
 class SingleSuperAdminTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.super_admin = User.objects.create_superuser(username="root", password="s3cret-pass")
+        cls.super_admin = User.objects.create_superuser(username="root", email="root@example.com", password="s3cret-pass")
 
     def test_second_super_admin_is_rejected_by_database(self):
         with self.assertRaises(IntegrityError), transaction.atomic():
