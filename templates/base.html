@@ -11,6 +11,9 @@
         <a class="brand" href="{% url 'core:home' %}">Docker Hub</a>
         <nav>
             {% if user.is_authenticated %}
+                {% if user.is_regular_user %}
+                    <a href="{% url 'repositories:create' %}" class="nav-button">Create repository</a>
+                {% endif %}
                 <span>{{ user.username }}</span>
             {% else %}
                 <a href="{% url 'admin:login' %}">Sign in</a>
