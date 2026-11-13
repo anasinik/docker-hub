@@ -1,6 +1,7 @@
 import logging
 
 from django.contrib import messages
+from django.db.models import Q
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView
 
@@ -46,11 +47,54 @@ class RepositoryListView(ListView):
     model = Repository
     template_name = "repositories/repository_list.html"
     context_object_name = "repositories"
-
+    paginate_by = 12
+    
     def get_queryset(self):
-        return (
+        queryset = (
             Repository.objects
-            .select_related("owner")
             .filter(visibility=Visibility.PUBLIC)
-            .order_by("-updated_at")
+            .select_related("owner")
         )
+
+        query = self.request.GET.get("q", "").strip()
+
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query)
+                | Q(description__icontains=query)
+                | Q(owner__username__icontains=query)
+            )
+
+        official = self.request.GET.get("official")
+
+        if official == "1":
+            queryset = queryset.filter(is_official=True)
+        elif official == "0":
+            queryset = queryset.filter(is_official=False)
+
+        badge = self.get_selected_badges()
+
+        if badge:
+            queryset = queryset.filter(owner__badge=badge)
+
+        return queryset.order_by("-updated_at", "-pk")
+            
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        query_params = self.request.GET.copy()
+        query_params.pop("page", None)
+
+        context["querystring"] = query_params.urlencode()
+        context["selected_badges"] = self.get_selected_badges()
+
+        return context
+    
+    def get_selected_badges(self):
+        allowed_badges = { "VERIFIED_PUBLISHER", "SPONSORED_OSS" }
+
+        return [
+            badge
+            for badge in self.request.GET.getlist("badge")
+            if badge in allowed_badges
+        ]

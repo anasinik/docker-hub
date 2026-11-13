@@ -10,7 +10,7 @@ def home(request):
         Repository.objects
         .filter(visibility=Visibility.PUBLIC)
         .select_related("owner")
-        .order_by("-updated_at")[:8]
+        .order_by("-updated_at")[:12]
     )
 
     return render(request, "core/home.html", {"repositories": repositories})

@@ -1,4 +1,6 @@
-{% load static %}<!DOCTYPE html>
+{% load static %}
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -8,16 +10,47 @@
 </head>
 <body>
     <header class="site-header">
-        <a class="brand" href="{% url 'core:home' %}">Docker Hub</a>
+        <a class="brand" href="{% url 'core:home' %}">
+            Docker Hub
+        </a>
+
+        <form
+            action="{% url 'repository_search' %}"
+            method="get"
+            class="header-search"
+            role="search"
+        >
+            <label for="global-search" class="visually-hidden">
+                Search repositories
+            </label>
+
+            <input
+                type="search"
+                id="global-search"
+                name="q"
+                placeholder="Search repositories..."
+                value="{{ request.GET.q|default:'' }}"
+            >
+
+            <button type="submit">
+                Search
+            </button>
+        </form>
+
         <nav>
             {% if user.is_authenticated %}
                 {% if user.is_regular_user %}
-                    <a href="{% url 'repositories:create' %}" class="nav-button">Create repository</a>
+                    <a href="{% url 'repositories:create' %}" class="nav-button">
+                        Create repository
+                    </a>
                 {% endif %}
+
                 <span>{{ user.username }}</span>
             {% else %}
                 <a href="{% url 'admin:login' %}">Sign in</a>
-                <a href="{% url 'accounts:register' %}" class="nav-button">Sign up</a>
+                <a href="{% url 'accounts:register' %}" class="nav-button">
+                    Sign up
+                </a>
             {% endif %}
         </nav>
     </header>
