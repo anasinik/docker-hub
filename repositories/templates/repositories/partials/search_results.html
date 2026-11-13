@@ -1,0 +1,17 @@
+<div id="search-results" aria-live="polite">
+
+    <p class="search-results-count">
+        {{ paginator.count }} result{{ paginator.count|pluralize }}
+    </p>
+
+    {% if repositories %}
+        {% include "repositories/partials/repository_list.html" with repositories=repositories only %}
+    {% else %}
+        <p class="search-empty">
+            No repositories match your search criteria.
+        </p>
+    {% endif %}
+
+    {% include "repositories/partials/pagination.html" %}
+
+</div>

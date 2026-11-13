@@ -8,102 +8,10 @@
             <h1 id="repositories-title">Explore repositories</h1>
         </div>
 
-        <form
-            method="get"
-            action="{% url 'repository_search' %}"
-            class="repository-filters"
-        >
-            <input
-                type="hidden"
-                name="q"
-                value="{{ request.GET.q|default:'' }}"
-            >
+        {% include "repositories/partials/repository_filters.html" %}
 
-            <select name="official" aria-label="Repository type">
-                <option value="">All repositories</option>
-                <option value="1"
-                    {% if request.GET.official == "1" %}selected{% endif %}>
-                    Official
-                </option>
-                <option value="0"
-                    {% if request.GET.official == "0" %}selected{% endif %}>
-                    Community
-                </option>
-            </select>
-
-            <fieldset class="badge-filter">
-                <label class="badge-filter-option">
-                    <input
-                        type="checkbox"
-                        name="badge"
-                        value="VERIFIED_PUBLISHER"
-                        {% if "VERIFIED_PUBLISHER" in selected_badges %}checked{% endif %}
-                    >
-                    Verified Publisher
-                </label>
-                <label class="badge-filter-option">
-                    <input
-                        type="checkbox"
-                        name="badge"
-                        value="SPONSORED_OSS"
-                        {% if "SPONSORED_OSS" in selected_badges %}checked{% endif %}
-                    >
-                    Sponsored OSS
-                </label>
-            </fieldset>
-
-            <button type="submit" class="button-primary">
-                Apply filters
-            </button>
-
-            {% if request.GET.official or request.GET.badge %}
-                {% if request.GET.q %}
-                    <a
-                        href="{% url 'repository_search' %}?q={{ request.GET.q|urlencode }}"
-                        class="filter-clear"
-                    >
-                        Clear filters
-                    </a>
-                {% else %}
-                    <a
-                        href="{% url 'repository_search' %}"
-                        class="filter-clear"
-                    >
-                        Clear filters
-                    </a>
-                {% endif %}
-            {% endif %}
-        </form>
         {% include "repositories/partials/repository_list.html" with repositories=page_obj %}
 
-        {% if is_paginated %}
-            <nav class="pagination" aria-label="Repository pages">
-
-                {% if page_obj.has_previous %}
-                    <a href="?{% if querystring %}{{ querystring }}&{% endif %}page=1">
-                        First
-                    </a>
-
-                    <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">
-                        Previous
-                    </a>
-                {% endif %}
-
-                <span>
-                    Page {{ page_obj.number }} of {{ paginator.num_pages }}
-                </span>
-
-                {% if page_obj.has_next %}
-                    <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">
-                        Next
-                    </a>
-
-                    <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ paginator.num_pages }}">
-                        Last
-                    </a>
-                {% endif %}
-
-            </nav>
-        {% endif %}
+        {% include "repositories/partials/pagination.html" %}
     </section>
 {% endblock %}

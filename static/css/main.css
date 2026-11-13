@@ -357,12 +357,36 @@ body {
     border: 1px solid #c3ccd6;
     border-radius: 4px;
     background: #fff;
-    color: #1f2933;
     font: inherit;
 }
 
 .repository-filters .button-primary {
     width: auto;
+}
+
+.search-results-count {
+    margin-bottom: 1rem;
+    color: #5f6b7a;
+    font-size: 0.875rem;
+}
+
+.search-empty {
+    padding: 2rem;
+    border: 1px dashed #c3ccd6;
+    border-radius: 8px;
+    color: #5f6b7a;
+    text-align: center;
+}
+
+/* HTMX transitions */
+
+#search-content.htmx-swapping {
+    opacity: 0.5;
+    transition: opacity 0.15s ease;
+}
+
+#search-content.htmx-settling {
+    opacity: 1;
 }
 
 /* Publisher badge filters */

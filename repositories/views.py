@@ -3,6 +3,8 @@ import logging
 from django.contrib import messages
 from django.db.models import Q
 from django.urls import reverse_lazy
+from django.utils.decorators import method_decorator
+from django.views.decorators.vary import vary_on_headers
 from django.views.generic import CreateView, ListView
 
 from accounts.permissions import RegularUserRequiredMixin
@@ -42,12 +44,21 @@ class RepositoryCreateView(RegularUserRequiredMixin, CreateView):
         messages.success(self.request, f"Repository {repository.registry_path} has been created.")
         return response
 
-
+@method_decorator(vary_on_headers("HX-Request", "HX-History-Restore-Request"), name="dispatch",)
 class RepositoryListView(ListView):
     model = Repository
-    template_name = "repositories/repository_list.html"
+    template_name = "repositories/repository_search.html"
     context_object_name = "repositories"
     paginate_by = 12
+    
+    def get_template_names(self):
+        is_htmx = self.request.headers.get("HX-Request") == "true"
+        is_history_restore = self.request.headers.get("HX-History-Restore-Request") == "true"
+
+        if is_htmx and not is_history_restore:
+            return ["repositories/partials/search_content.html"]
+
+        return [self.template_name]
     
     def get_queryset(self):
         queryset = (
