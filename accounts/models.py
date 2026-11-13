@@ -12,6 +12,11 @@ class Role(models.TextChoices):
     ADMIN = "ADMIN", "Admin"
     REGULAR_USER = "REGULAR_USER", "Regular user"
 
+class Badge(models.TextChoices):
+    NONE = "", "None"
+    VERIFIED_PUBLISHER = "Verified publisher", "VERIFIED_PUBLISHER"
+    SPONSORED_OSS =  "Sponsored OSS", "SPONSORED_OSS"
+
 
 ADMIN_ROLES = (Role.SUPER_ADMIN, Role.ADMIN)
 
@@ -55,6 +60,7 @@ class User(AbstractUser):
     )
     email = models.EmailField("email address")
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.REGULAR_USER)
+    badge = models.CharField(max_length=20, choices=Badge.choices, default=Badge.NONE)
 
     objects = UserManager()
 

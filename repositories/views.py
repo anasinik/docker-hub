@@ -2,12 +2,12 @@ import logging
 
 from django.contrib import messages
 from django.urls import reverse_lazy
-from django.views.generic import CreateView
+from django.views.generic import CreateView, ListView
 
 from accounts.permissions import RegularUserRequiredMixin
 
 from .forms import RepositoryForm
-from .models import Repository
+from .models import Repository, Visibility
 
 logger = logging.getLogger(__name__)
 
@@ -40,3 +40,17 @@ class RepositoryCreateView(RegularUserRequiredMixin, CreateView):
         )
         messages.success(self.request, f"Repository {repository.registry_path} has been created.")
         return response
+
+
+class RepositoryListView(ListView):
+    model = Repository
+    template_name = "repositories/repository_list.html"
+    context_object_name = "repositories"
+
+    def get_queryset(self):
+        return (
+            Repository.objects
+            .select_related("owner")
+            .filter(visibility=Visibility.PUBLIC)
+            .order_by("-updated_at")
+        )
