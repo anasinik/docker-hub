@@ -9,6 +9,7 @@ Software Configuration Management course.
 dockerhub/      Django project (settings, root URLs, WSGI/ASGI)
 accounts/       Custom user model (AUTH_USER_MODEL = accounts.User)
 core/           Home page and health check endpoint
+repositories/   Image repositories (create, ...)
 templates/      Shared templates (base.html)
 static/         Shared static files
 docs/           Class diagram
@@ -37,6 +38,7 @@ The app is then available at http://127.0.0.1:8000/:
 | --- | --- |
 | Home | http://127.0.0.1:8000/ |
 | Sign up | http://127.0.0.1:8000/accounts/register/ |
+| Create repository (regular users) | http://127.0.0.1:8000/repositories/new/ |
 | Django admin | http://127.0.0.1:8000/admin/ |
 | Health check | http://127.0.0.1:8000/health/ |
 
@@ -54,6 +56,19 @@ Usernames are 4-30 lowercase letters and digits, because they are also the
 repository namespace (`username/repository`). Names such as `library`, `admin`
 and `official` are reserved and cannot be taken at sign-up. Emails are required
 and unique, ignoring case.
+
+## Repositories
+
+Regular users create repositories at `/repositories/new/`. Admins cannot (they
+get 403); they manage official repositories instead. A repository belongs to the
+user who created it, and its images are addressed as `username/repository`
+(for example `alice/my-app`).
+
+- Names are 2-100 characters: lowercase letters and digits, optionally separated
+  by a single `.`, `_` or `-` (Docker's rules for image names). Input is lowercased.
+- A user cannot have two repositories with the same name; different users can.
+- The description is optional and up to 100 characters.
+- Visibility is `Public` (default) or `Private`.
 
 ## Configuration
 
