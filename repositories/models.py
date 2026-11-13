@@ -43,6 +43,12 @@ class Repository(models.Model):
         default=Visibility.PUBLIC,
     )
     is_official = models.BooleanField(default=False)
+    starred_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        through="RepositoryStar",
+        related_name="starred_repositories",
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -68,3 +74,29 @@ class Repository(models.Model):
     @property
     def is_public(self):
         return self.visibility == Visibility.PUBLIC
+
+
+class RepositoryStar(models.Model):
+    repository = models.ForeignKey(
+        Repository,
+        on_delete=models.CASCADE,
+        related_name="star_records",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="repository_star_records",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["repository", "user"],
+                name="unique_repository_star",
+            ),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} starred {self.repository}"

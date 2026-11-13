@@ -1,9 +1,10 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models.aggregates import Count
 from django.test import TestCase
 
 from accounts.models import User
-from repositories.models import Repository, Visibility
+from repositories.models import Repository, RepositoryStar, Visibility
 
 PASSWORD = "Tr1cky-pass-2025"
 
@@ -94,3 +95,70 @@ class RepositoryModelTests(TestCase):
         self.alice.delete()
 
         self.assertFalse(Repository.objects.exists())
+
+
+class RepositoryStarModelTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.alice = User.objects.create_user(username="alice", email="alice@example.com", password=PASSWORD)
+        cls.bob = User.objects.create_user(username="bob1", email="bob@example.com", password=PASSWORD)
+        cls.carol = User.objects.create_user(username="carol", email="carol@example.com", password=PASSWORD)
+
+        cls.repository = Repository.objects.create(owner=cls.alice, name="nginx")
+
+    def test_create_star(self):
+        star = RepositoryStar.objects.create(repository=self.repository, user=self.bob)
+
+        self.assertEqual(star.repository, self.repository)
+        self.assertEqual(star.user, self.bob)
+        self.assertIsNotNone(star.created_at)
+
+    def test_user_can_star_repository_only_once(self):
+        RepositoryStar.objects.create(repository=self.repository, user=self.bob)
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            RepositoryStar.objects.create(repository=self.repository, user=self.bob)
+
+    def test_repository_starred_by_relation(self):
+        RepositoryStar.objects.create(repository=self.repository, user=self.bob)
+        RepositoryStar.objects.create(repository=self.repository, user=self.carol)
+
+        self.assertQuerySetEqual(
+            self.repository.starred_by.values_list("username", flat=True),
+            ["bob1", "carol"],
+            ordered=False,
+        )
+
+    def test_user_starred_repositories_relation(self):
+        RepositoryStar.objects.create(repository=self.repository, user=self.bob)
+
+        self.assertQuerySetEqual(
+            self.bob.starred_repositories.values_list("pk", flat=True),
+            [self.repository.pk],
+        )
+
+    def test_stars_are_deleted_with_repository(self):
+        RepositoryStar.objects.create(repository=self.repository, user=self.bob)
+
+        self.repository.delete()
+
+        self.assertFalse(RepositoryStar.objects.exists())
+
+    def test_stars_are_deleted_with_user(self):
+        RepositoryStar.objects.create(repository=self.repository, user=self.bob)
+
+        self.bob.delete()
+
+        self.assertFalse(RepositoryStar.objects.exists())
+
+    def test_star_count_annotation(self):
+        RepositoryStar.objects.create(repository=self.repository, user=self.bob)
+        RepositoryStar.objects.create(repository=self.repository, user=self.carol)
+
+        repository = (
+            Repository.objects
+            .annotate(star_count=Count("starred_by", distinct=True))
+            .get(pk=self.repository.pk)
+        )
+
+        self.assertEqual(repository.star_count, 2)

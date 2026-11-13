@@ -1,0 +1,57 @@
+{% url 'repository_search' as search_url %}
+<form
+    method="get"
+    action="{{ search_url }}"
+    class="repository-filters"
+>
+    <input type="hidden" name="q" value="{{ request.GET.q|default:'' }}">
+
+    <select name="official" aria-label="Repository type">
+        <option value="">All repositories</option>
+
+        <option value="1"
+            {% if request.GET.official == "1" %}selected{% endif %}>
+            Official
+        </option>
+
+        <option value="0"
+            {% if request.GET.official == "0" %}selected{% endif %}>
+            Community
+        </option>
+    </select>
+
+    <fieldset class="badge-filter">
+        <label class="badge-filter-option">
+            <input
+                type="checkbox"
+                name="badge"
+                value="VERIFIED_PUBLISHER"
+                {% if "VERIFIED_PUBLISHER" in selected_badges %}checked{% endif %}
+            >
+            Verified Publisher
+        </label>
+
+        <label class="badge-filter-option">
+            <input
+                type="checkbox"
+                name="badge"
+                value="SPONSORED_OSS"
+                {% if "SPONSORED_OSS" in selected_badges %}checked{% endif %}
+            >
+            Sponsored OSS
+        </label>
+    </fieldset>
+
+    <button type="submit" class="button-primary">
+        Apply filters
+    </button>
+
+    {% if request.GET.official or request.GET.badge %}
+        <a
+            href="{{ search_url }}{% if request.GET.q %}?q={{ request.GET.q|urlencode }}{% endif %}"
+            class="filter-clear"
+        >
+            Clear filters
+        </a>
+    {% endif %}
+</form>

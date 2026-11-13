@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Explore repositories | Docker Hub{% endblock %}
+
+{% block content %}
+    <section aria-labelledby="repositories-title">
+        <div class="section-header">
+            <h1 id="repositories-title">Explore repositories</h1>
+        </div>
+
+        {% include "repositories/partials/repository_filters.html" %}
+
+        {% include "repositories/partials/repository_list.html" with repositories=page_obj %}
+
+        {% include "repositories/partials/pagination.html" %}
+    </section>
+{% endblock %}
