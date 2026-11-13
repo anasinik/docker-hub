@@ -75,7 +75,7 @@ class RepositoryListView(ListView):
         elif official == "0":
             queryset = queryset.filter(is_official=False)
 
-        selected_badges = self.get_selected_badges()
+        selected_badges = self.request.GET.getlist("badge")
 
         if selected_badges:
             queryset = queryset.filter(owner__badge__in=selected_badges)
@@ -109,10 +109,6 @@ class RepositoryListView(ListView):
         query_params.pop("page", None)
 
         context["querystring"] = query_params.urlencode()
-        context["selected_badges"] = self.get_selected_badges()
+        context["selected_badges"] = self.request.GET.getlist("badge")
 
         return context
-    
-    def get_selected_badges(self):
-        allowed_badges = { "VERIFIED_PUBLISHER", "SPONSORED_OSS" }
-        return [badge for badge in self.request.GET.getlist("badge") if badge in allowed_badges]

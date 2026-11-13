@@ -60,7 +60,7 @@ class User(AbstractUser):
     )
     email = models.EmailField("email address")
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.REGULAR_USER)
-    badge = models.CharField(max_length=20, choices=Badge.choices, default=Badge.NONE)
+    badge = models.CharField(max_length=20, choices=Badge.choices, default=Badge.NONE, blank=True)
 
     objects = UserManager()
 
