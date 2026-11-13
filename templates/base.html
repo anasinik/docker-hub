@@ -42,6 +42,10 @@
         <nav>
             {% if user.is_authenticated %}
                 {% if user.is_regular_user %}
+                    <a href="{% url 'repositories:list' %}">
+                        My repositories
+                    </a>
+
                     <a href="{% url 'repositories:create' %}" class="nav-button">
                         Create repository
                     </a>

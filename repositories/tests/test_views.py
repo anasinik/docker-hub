@@ -60,7 +60,7 @@ class RepositoryCreateViewTests(TestCase):
 
         response = self.post_create(name="My-App", visibility=Visibility.PRIVATE)
 
-        self.assertRedirects(response, reverse("core:home"))
+        self.assertRedirects(response, reverse("repositories:list"))
         repository = Repository.objects.get()
         self.assertEqual(repository.owner, self.alice)
         self.assertEqual(repository.name, "my-app")
