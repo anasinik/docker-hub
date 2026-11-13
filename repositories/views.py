@@ -1,7 +1,7 @@
 import logging
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Q, Case, Count, IntegerField, Value, When
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
@@ -65,16 +65,8 @@ class RepositoryListView(ListView):
             Repository.objects
             .filter(visibility=Visibility.PUBLIC)
             .select_related("owner")
+            .annotate(star_count=Count("starred_by", distinct=True))
         )
-
-        query = self.request.GET.get("q", "").strip()
-
-        if query:
-            queryset = queryset.filter(
-                Q(name__icontains=query)
-                | Q(description__icontains=query)
-                | Q(owner__username__icontains=query)
-            )
 
         official = self.request.GET.get("official")
 
@@ -83,13 +75,33 @@ class RepositoryListView(ListView):
         elif official == "0":
             queryset = queryset.filter(is_official=False)
 
-        badge = self.get_selected_badges()
+        selected_badges = self.get_selected_badges()
 
-        if badge:
-            queryset = queryset.filter(owner__badge=badge)
+        if selected_badges:
+            queryset = queryset.filter(owner__badge__in=selected_badges)
 
-        return queryset.order_by("-updated_at", "-pk")
-            
+        query = self.request.GET.get("q", "").strip()
+
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query)
+                | Q(description__icontains=query)
+                | Q(owner__username__icontains=query)
+            ).annotate(
+                text_score=Case(
+                    When(name__iexact=query, then=Value(100)),
+                    When(name__istartswith=query, then=Value(80)),
+                    When(name__icontains=query, then=Value(60)),
+                    When(owner__username__icontains=query, then=Value(40)),
+                    When(description__icontains=query, then=Value(20)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            )
+
+            return queryset.order_by("-text_score", "-star_count", "-updated_at", "-pk")
+        return queryset.order_by("-star_count", "-updated_at", "-pk")
+                                
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -103,9 +115,4 @@ class RepositoryListView(ListView):
     
     def get_selected_badges(self):
         allowed_badges = { "VERIFIED_PUBLISHER", "SPONSORED_OSS" }
-
-        return [
-            badge
-            for badge in self.request.GET.getlist("badge")
-            if badge in allowed_badges
-        ]
+        return [badge for badge in self.request.GET.getlist("badge") if badge in allowed_badges]

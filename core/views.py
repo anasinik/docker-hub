@@ -1,4 +1,5 @@
 from django.db import connection
+from django.db.models.aggregates import Count
 from django.http import JsonResponse
 from django.shortcuts import render
 
@@ -10,6 +11,7 @@ def home(request):
         Repository.objects
         .filter(visibility=Visibility.PUBLIC)
         .select_related("owner")
+        .annotate(star_count=Count("starred_by", distinct=True))
         .order_by("-updated_at")[:12]
     )
 
