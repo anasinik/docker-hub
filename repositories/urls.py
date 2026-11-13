@@ -5,6 +5,5 @@ from . import views
 app_name = "repositories"
 
 urlpatterns = [
-    path("", views.RepositoryListView.as_view(), name="list"),
     path("new/", views.RepositoryCreateView.as_view(), name="create"),
 ]

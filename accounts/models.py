@@ -13,9 +13,9 @@ class Role(models.TextChoices):
     REGULAR_USER = "REGULAR_USER", "Regular user"
 
 class Badge(models.TextChoices):
-    NONE = "", "None"
-    VERIFIED_PUBLISHER = "Verified publisher", "VERIFIED_PUBLISHER"
-    SPONSORED_OSS =  "Sponsored OSS", "SPONSORED_OSS"
+    NONE = "NONE", "", 
+    VERIFIED_PUBLISHER = "VERIFIED_PUBLISHER", "Verified publisher" 
+    SPONSORED_OSS = "SPONSORED_OSS", "Sponsored OSS"
 
 
 ADMIN_ROLES = (Role.SUPER_ADMIN, Role.ADMIN)
