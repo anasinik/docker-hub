@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import User
 from repositories.models import Repository, RepositoryStar, Visibility
@@ -46,9 +49,10 @@ class UserRepositoryListViewTests(TestCase):
 
     def test_most_recently_updated_first(self):
         older = Repository.objects.create(owner=self.alice, name="older")
-        Repository.objects.create(owner=self.alice, name="newer")
-        older.description = "touched"
-        older.save()
+        newer = Repository.objects.create(owner=self.alice, name="newer")
+        now = timezone.now()
+        Repository.objects.filter(pk=newer.pk).update(updated_at=now - timedelta(hours=1))
+        Repository.objects.filter(pk=older.pk).update(updated_at=now)
         self.client.force_login(self.alice)
 
         names = [repository.name for repository in self.client.get(self.url).context["repositories"]]
