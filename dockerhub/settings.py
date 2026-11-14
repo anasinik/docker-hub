@@ -86,6 +86,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "dockerhub.wsgi.application"
 
+# Registry
+
+REGISTRY_CLIENT_CLASS = "repositories.services.registry.mock.MockRegistryClient"
 
 # Database and cache
 # UKS_TEST_DB=ON  -> SQLite + local memory cache (tests, CI, local development)

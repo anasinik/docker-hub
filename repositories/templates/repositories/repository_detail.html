@@ -1,0 +1,180 @@
+
+{% extends "base.html" %}
+
+{% block title %}
+    {% if repository.is_official %}
+        {{ repository.name }}
+    {% else %}
+        {{ repository.owner.username }}/{{ repository.name }}
+    {% endif %} | Docker Hub
+{% endblock %}
+
+{% block content %}
+<main class="repository-detail">
+    <section class="detail-header">
+
+        <div class="detail-heading">
+            <div class="detail-title">
+                <div class="detail-name-row">
+                    <h1>
+                        {% if repository.is_official %}
+                            {{ repository.name }}
+                        {% else %}
+                            {{ repository.owner.username }}/{{ repository.name }}
+                        {% endif %}
+                    </h1>
+
+                    {% if not repository.is_public %}
+                        <span class="repo-badge">
+                            <svg width="12" height="12"
+                                viewBox="0 0 16 16"
+                                aria-hidden="true"
+                                focusable="false">
+                                <path fill="currentColor"
+                                    fill-rule="evenodd"
+                                    d="M4 7V5a4 4 0 1 1 8 0v2h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1zm2 0h4V5a2 2 0 1 0-4 0v2z"/>
+                            </svg>
+                            Private
+                        </span>
+                    {% endif %}
+                </div>
+
+                <div class="detail-badges">
+                    {% if repository.is_official %}
+                        <span class="repo-badge official">
+                            Docker Official Image
+                        </span>
+                    {% endif %}
+
+                    {% if repository.owner.badge == "VERIFIED_PUBLISHER" %}
+                        <span class="repo-badge verified">
+                            Verified Publisher
+                        </span>
+                    {% elif repository.owner.badge == "SPONSORED_OSS" %}
+                        <span class="repo-badge sponsored">
+                            Sponsored OSS
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if repository.description %}
+            <p class="detail-description">
+                {{ repository.description }}
+            </p>
+        {% else %}
+            <p class="detail-description empty-description">
+                No description provided.
+            </p>
+        {% endif %}
+
+        <div class="detail-meta">
+            <span>
+                <span class="star-count">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        aria-hidden="true"
+                    >
+                        <path d="M12 2.5l2.93 5.94 6.56.95-4.75 4.63 1.12 6.53L12 17.47l-5.86 3.08 1.12-6.53-4.75-4.63 6.56-.95L12 2.5z"/>
+                    </svg>
+                    {{ repository.star_count|default:0 }}
+                </span>
+
+                {% if is_starred %}
+                    <span class="starred-by-user">
+                        Starred by you
+                    </span>
+                {% endif %}
+            </span>
+
+            <span>
+                <span class="meta-label">Created</span>
+                {{ repository.created_at|date:"M j, Y" }}
+            </span>
+
+            <span>
+                <span class="meta-label">Last updated</span>
+                {{ repository.updated_at|date:"M j, Y" }}
+            </span>
+        </div>
+
+    </section>
+
+    <section class="detail-section">
+
+        <div class="section-heading">
+            <div>
+                <h2>Tags</h2>
+                <p>Available image versions in this repository.</p>
+            </div>
+
+            <span class="tag-count">
+                {{ tags|length }} tags
+            </span>
+        </div>
+
+        {% if registry_unavailable %}
+            <div class="detail-message error">
+                Unable to retrieve tags from the container registry.
+                Please try again later.
+            </div>
+
+        {% elif tags %}
+            <div class="tags-table-wrapper">
+                <table class="tags-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Tag</th>
+                            <th scope="col">Digest</th>
+                            <th scope="col">Last pushed</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for tag in tags %}
+                            <tr>
+                                <td>
+                                    <span class="tag-name">
+                                        {{ tag.name }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <code class="tag-digest"
+                                          title="{{ tag.digest }}">
+                                        {{ tag.digest }}
+                                    </code>
+                                </td>
+
+                                <td class="tag-date">
+                                    {% if tag.pushed_at %}
+                                        {{ tag.pushed_at|date:"M j, Y H:i" }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        {% else %}
+            <div class="detail-message empty-tags">
+                <span class="empty-tags-icon" aria-hidden="true">▦</span>
+                <strong>No tags available</strong>
+                <p>
+                    This repository does not contain any published images yet.
+                </p>
+            </div>
+        {% endif %}
+
+    </section>
+
+</main>
+{% endblock %}
