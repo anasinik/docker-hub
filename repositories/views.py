@@ -1,13 +1,15 @@
 import logging
+from shutil import RegistryError
 
 from django.contrib import messages
 from django.db.models import Q, Case, Count, IntegerField, Value, When
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
-from django.views.generic import CreateView, ListView
+from django.views.generic import CreateView, DetailView, ListView
 
 from accounts.permissions import RegularUserRequiredMixin
+from repositories.services.registry.factory import get_registry_client
 
 from .forms import RepositoryForm
 from .models import Repository, Visibility
@@ -128,5 +130,47 @@ class RepositoryListView(ListView):
 
         context["querystring"] = query_params.urlencode()
         context["selected_badges"] = self.request.GET.getlist("badge")
+
+        return context
+    
+class RepositoryDetailView(DetailView):
+    model = Repository
+    template_name = "repositories/repository_detail.html"
+    context_object_name = "repository"
+
+    def get_queryset(self):
+        queryset = (
+            Repository.objects
+            .select_related("owner")
+            .annotate(
+                star_count=Count("starred_by", distinct=True)
+            )
+        )
+
+        user = self.request.user
+
+        if user.is_authenticated:
+            return queryset.filter(
+                Q(visibility=Visibility.PUBLIC)
+                | Q(owner=user)
+            )
+
+        return queryset.filter(visibility=Visibility.PUBLIC)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        try:
+            context["tags"] = get_registry_client().list_tags(self.object)
+            context["registry_unavailable"] = False
+        except RegistryError:
+            context["tags"] = []
+            context["registry_unavailable"] = True
+
+        user = self.request.user
+        context["is_starred"] = (
+            user.is_authenticated
+            and self.object.starred_by.filter(pk=user.pk).exists()
+        )
 
         return context

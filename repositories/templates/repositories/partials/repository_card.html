@@ -1,4 +1,4 @@
-<article class="repo-card">
+<article class="repo-card" hx-on:click="window.location.href = '/repositories/{{ repository.id }}'">
     <div class="repo-card-icon" aria-hidden="true">
         {{ repository.owner.username|first|upper }}
     </div>
