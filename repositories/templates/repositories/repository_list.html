@@ -1,16 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Explore repositories | Docker Hub{% endblock %}
+{% block title %}My repositories | Docker Hub{% endblock %}
 
 {% block content %}
     <section aria-labelledby="repositories-title">
         <div class="section-header">
-            <h1 id="repositories-title">Explore repositories</h1>
+            <h1 id="repositories-title">My repositories</h1>
+
+            <a href="{% url 'repositories:create' %}" class="button-primary button-inline">
+                Create repository
+            </a>
         </div>
 
-        {% include "repositories/partials/repository_filters.html" %}
-
-        {% include "repositories/partials/repository_list.html" with repositories=page_obj %}
+        {% include "repositories/partials/repository_list.html" with repositories=page_obj empty_message="You don't have any repositories yet." only %}
 
         {% include "repositories/partials/pagination.html" %}
     </section>

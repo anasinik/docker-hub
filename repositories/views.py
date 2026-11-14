@@ -24,7 +24,7 @@ class RepositoryCreateView(RegularUserRequiredMixin, CreateView):
     model = Repository
     form_class = RepositoryForm
     template_name = "repositories/repository_form.html"
-    success_url = reverse_lazy("core:home")
+    success_url = reverse_lazy("repositories:list")
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -43,6 +43,24 @@ class RepositoryCreateView(RegularUserRequiredMixin, CreateView):
         )
         messages.success(self.request, f"Repository {repository.registry_path} has been created.")
         return response
+
+
+class UserRepositoryListView(RegularUserRequiredMixin, ListView):
+    """The logged-in user's own repositories, public and private."""
+
+    template_name = "repositories/repository_list.html"
+    context_object_name = "repositories"
+    paginate_by = 12
+
+    def get_queryset(self):
+        return (
+            Repository.objects
+            .filter(owner=self.request.user)
+            .select_related("owner")
+            .annotate(star_count=Count("starred_by", distinct=True))
+            .order_by("-updated_at", "-pk")
+        )
+
 
 @method_decorator(vary_on_headers("HX-Request", "HX-History-Restore-Request"), name="dispatch",)
 class RepositoryListView(ListView):

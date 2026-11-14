@@ -2,6 +2,6 @@
     {% for repository in repositories %}
         {% include "repositories/partials/repository_card.html" with repository=repository only %}
     {% empty %}
-        <p>No public repositories available yet.</p>
+        <p>{{ empty_message|default:"No public repositories available yet." }}</p>
     {% endfor %}
 </div>
