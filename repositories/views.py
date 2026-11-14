@@ -1,5 +1,4 @@
 import logging
-from shutil import RegistryError
 
 from django.contrib import messages
 from django.db.models import Q, Case, Count, IntegerField, Value, When
@@ -9,6 +8,7 @@ from django.views.decorators.vary import vary_on_headers
 from django.views.generic import CreateView, DetailView, ListView
 
 from accounts.permissions import RegularUserRequiredMixin
+from repositories.services.registry.base import RegistryError
 from repositories.services.registry.factory import get_registry_client
 
 from .forms import RepositoryForm
@@ -142,18 +142,13 @@ class RepositoryDetailView(DetailView):
         queryset = (
             Repository.objects
             .select_related("owner")
-            .annotate(
-                star_count=Count("starred_by", distinct=True)
-            )
+            .annotate(star_count=Count("starred_by", distinct=True))
         )
 
         user = self.request.user
 
         if user.is_authenticated:
-            return queryset.filter(
-                Q(visibility=Visibility.PUBLIC)
-                | Q(owner=user)
-            )
+            return queryset.filter(Q(visibility=Visibility.PUBLIC) | Q(owner=user))
 
         return queryset.filter(visibility=Visibility.PUBLIC)
 
