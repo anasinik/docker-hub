@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from accounts.models import User
-from repositories.forms import RepositoryForm
+from repositories.forms import RepositoryForm, RepositorySettingsForm
 from repositories.models import Repository, Visibility
 
 PASSWORD = "Tr1cky-pass-2025"
@@ -94,3 +94,64 @@ class RepositoryFormTests(TestCase):
         form = self.make_form()
 
         self.assertTrue(form.is_valid(), form.errors)
+
+
+class RepositorySettingsFormTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.alice = User.objects.create_user(username="alice", email="alice@example.com", password=PASSWORD)
+
+    def setUp(self):
+        self.repository = Repository.objects.create(owner=self.alice, name="nginx", description="Web server")
+
+    def make_form(self, **overrides):
+        data = {"description": "Reverse proxy", "visibility": Visibility.PRIVATE}
+        data.update(overrides)
+        return RepositorySettingsForm(data=data, instance=self.repository)
+
+    def test_form_has_only_description_and_visibility(self):
+        form = RepositorySettingsForm(instance=self.repository)
+
+        self.assertEqual(list(form.fields), ["description", "visibility"])
+
+    def test_valid_form_updates_description_and_visibility(self):
+        form = self.make_form()
+
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.repository.refresh_from_db()
+        self.assertEqual(self.repository.description, "Reverse proxy")
+        self.assertEqual(self.repository.visibility, Visibility.PRIVATE)
+
+    def test_posted_name_owner_and_official_flag_are_ignored(self):
+        bob = User.objects.create_user(username="bob1", email="bob@example.com", password=PASSWORD)
+        form = self.make_form(name="renamed", owner=bob.pk, is_official="on")
+
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.repository.refresh_from_db()
+        self.assertEqual(self.repository.name, "nginx")
+        self.assertEqual(self.repository.owner, self.alice)
+        self.assertFalse(self.repository.is_official)
+
+    def test_description_can_be_cleared(self):
+        form = self.make_form(description="")
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.save().description, "")
+
+    def test_description_is_limited_to_100_characters(self):
+        self.assertTrue(self.make_form(description="a" * 100).is_valid())
+
+        form = self.make_form(description="a" * 101)
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("description", form.errors)
+
+    def test_visibility_is_required_and_validated(self):
+        for value in ("", "SECRET"):
+            with self.subTest(visibility=value):
+                form = self.make_form(visibility=value)
+
+                self.assertFalse(form.is_valid())
+                self.assertIn("visibility", form.errors)
