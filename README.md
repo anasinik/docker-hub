@@ -102,6 +102,62 @@ for the full list.
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated host names |
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` | | PostgreSQL connection |
 | `REDIS_URL` | `redis://redis:6379/0` | Redis cache location |
+| `DJANGO_LOG_LEVEL` | `INFO` | Lowest level that is logged |
+| `DJANGO_LOG_DIR` | `<project>/logs` | Directory of the log files |
+| `DJANGO_LOG_TO_FILE` | `True` | `False` logs to the console only |
+
+## Logging
+
+Logging is configured once, in `LOGGING` in [settings.py](dockerhub/settings.py).
+Every message goes to the console and to two files in `DJANGO_LOG_DIR`:
+
+| File | Format | Used by |
+| --- | --- | --- |
+| `app.log` | `2026-11-15 14:03:22,481 \| INFO     \| repositories.views \| Repository created: ...` | developers |
+| `app.json.log` | one JSON object per line: `timestamp` (UTC), `level`, `logger`, `message`, ... | Filebeat -> Elasticsearch -> Analytics |
+
+The files are not rotated by the app: several Gunicorn workers write to them,
+so rotation is left to an external tool (logrotate); the app reopens a file
+once it has been rotated. While tests run, nothing is logged to the console or
+to files.
+
+Every HTTP request is logged by `core.middleware.RequestLoggingMiddleware`
+(logger `dockerhub.requests`): method, path, status, duration, user and IP, as
+INFO (2xx/3xx), WARNING (4xx) or ERROR (5xx). Static files and `/health/` are
+skipped.
+
+### Logging in your code
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)  # e.g. "repositories.views"
+
+logger.info("Repository created: path=%s id=%s", repository.registry_path, repository.pk)
+```
+
+- Use `%s` arguments, not f-strings: the message is formatted only if it is logged.
+- Log user input with `%r`, so newlines cannot forge extra log lines.
+- Never log passwords, tokens or other secrets.
+- Fields passed as `extra={"repo_id": repository.pk}` become separate
+  fields in `app.json.log`, so they can be searched in Elasticsearch. Rules:
+  - use specific names (`repo_id`, `duration_ms`, `client_ip`), and prefix them
+    with your app when a name could mean different things (`repo_visibility`,
+    not `visibility`);
+  - never use ECS names (`user`, `host`, `log`, `event`, `process`, `client`,
+    `http`) or LogRecord attributes (`name`, `module`, `message`, ...);
+  - values are plain strings, numbers or booleans, of the same type in every call.
+- In an `except` block, use `logger.exception("...")` to include the traceback.
+
+| Level | When |
+| --- | --- |
+| `DEBUG` | Details only needed while debugging (hidden by default) |
+| `INFO` | Normal events: user registered, logged in, repository created or deleted |
+| `WARNING` | Something unexpected that the app handled: failed login, forbidden action, registry unavailable |
+| `ERROR` | An operation failed: database unavailable, unhandled exception |
+| `CRITICAL` | The whole app cannot work (not used yet) |
+
+Tests can check log messages with `self.assertLogs("repositories.views", level="INFO")`.
 
 ## Running tests
 

@@ -11,6 +11,7 @@ in two environments:
 """
 
 import os
+import sys
 from pathlib import Path
 
 
@@ -58,6 +59,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "core.middleware.RequestLoggingMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -165,3 +167,58 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# Logging
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+
+LOG_LEVEL = os.environ.get("DJANGO_LOG_LEVEL", "INFO").strip().upper()
+LOG_DIR = Path(os.environ.get("DJANGO_LOG_DIR") or BASE_DIR / "logs")
+LOG_TO_FILE = env_bool("DJANGO_LOG_TO_FILE", default=True) and not TESTING
+
+LOG_REQUESTS_SKIP_PREFIXES = ["/" + STATIC_URL.lstrip("/"), "/health/", "/favicon.ico"]
+
+LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+
+if TESTING:
+    _root_handlers = ["null"]
+elif LOG_TO_FILE:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    _root_handlers = ["console", "file", "json_file"]
+else:
+    _root_handlers = ["console"]
+
+# WatchedFileHandler, not RotatingFileHandler: several Gunicorn workers write
+# to the same files, and RotatingFileHandler is not safe across processes.
+# Appending is, and the file is reopened if it is rotated externally (logrotate).
+_file_handler = {
+    "class": "logging.handlers.WatchedFileHandler",
+    "encoding": "utf-8",
+    "delay": True,
+}
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "text": {"format": LOG_FORMAT},
+        "json": {"()": "core.logging.JsonFormatter"},
+    },
+    "handlers": {
+        "null": {"class": "logging.NullHandler"},
+        "console": {"class": "logging.StreamHandler", "formatter": "text"},
+        "file": {**_file_handler, "filename": LOG_DIR / "app.log", "formatter": "text"},
+        "json_file": {**_file_handler, "filename": LOG_DIR / "app.json.log", "formatter": "json"},
+    },
+    "root": {"handlers": _root_handlers, "level": LOG_LEVEL},
+    "loggers": {
+        # Django's own messages go to the root handlers (no separate console
+        # handler). Fixed at INFO so DJANGO_LOG_LEVEL=DEBUG does not log every SQL query.
+        "django": {"handlers": [], "level": "INFO", "propagate": True},
+        # 4xx/5xx are already logged by RequestLoggingMiddleware; keep only
+        # errors here, they carry the traceback.
+        "django.request": {"handlers": [], "level": "ERROR", "propagate": True},
+        # runserver's access log duplicates RequestLoggingMiddleware.
+        "django.server": {"handlers": ["null"], "propagate": False},
+    },
+}

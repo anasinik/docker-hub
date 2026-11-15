@@ -1,9 +1,13 @@
+import logging
+
 from django.db import connection
 from django.db.models.aggregates import Count
 from django.http import JsonResponse
 from django.shortcuts import render
 
 from repositories.models import Repository, Visibility
+
+logger = logging.getLogger(__name__)
 
 
 def home(request):
@@ -23,6 +27,8 @@ def health(request):
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-    except Exception:
+    except Exception as error:
+        # /health/ is skipped by the request log
+        logger.error("Health check failed: database unavailable: %s", error)
         return JsonResponse({"status": "error", "database": "unavailable"}, status=503)
     return JsonResponse({"status": "ok"})

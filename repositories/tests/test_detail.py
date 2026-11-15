@@ -172,7 +172,16 @@ class RepositoryDetailViewTests(TestCase):
     def test_registry_error_is_handled(self):
         self.registry_client.list_tags.side_effect = RegistryError("Registry unavailable")
 
-        response = self.client.get(self.get_detail_url(self.public_repository))
+        with self.assertLogs("repositories.views", level="WARNING") as logs:
+            response = self.client.get(self.get_detail_url(self.public_repository))
+
+        self.assertEqual(logs.records[0].levelname, "WARNING")
+        self.assertEqual(logs.records[0].repo_id, self.public_repository.pk)
+        self.assertIn(
+            f"Registry unavailable, cannot list tags: path=alice/nginx id={self.public_repository.pk} "
+            "error=Registry unavailable",
+            logs.output[0],
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["tags"], [])

@@ -188,7 +188,14 @@ class RepositoryDetailView(DetailView):
         try:
             context["tags"] = get_registry_client().list_tags(self.object)
             context["registry_unavailable"] = False
-        except RegistryError:
+        except RegistryError as error:
+            logger.warning(
+                "Registry unavailable, cannot list tags: path=%s id=%s error=%s",
+                self.object.registry_path,
+                self.object.pk,
+                error,
+                extra={"repo_id": self.object.pk},
+            )
             context["tags"] = []
             context["registry_unavailable"] = True
 
