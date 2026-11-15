@@ -38,6 +38,7 @@ The app is then available at http://127.0.0.1:8000/:
 | --- | --- |
 | Home | http://127.0.0.1:8000/ |
 | Sign up | http://127.0.0.1:8000/accounts/register/ |
+| Sign in | http://127.0.0.1:8000/accounts/login/ |
 | My repositories (regular users) | http://127.0.0.1:8000/repositories/ |
 | Create repository (regular users) | http://127.0.0.1:8000/repositories/new/ |
 | Repository settings (owner) | http://127.0.0.1:8000/repositories/&lt;id&gt;/settings/ |
@@ -58,6 +59,12 @@ Usernames are 4-30 lowercase letters and digits, because they are also the
 repository namespace (`username/repository`). Names such as `library`, `admin`
 and `official` are reserved and cannot be taken at sign-up. Emails are required
 and unique, ignoring case.
+
+All roles sign in at `/accounts/login/` with their username or email (case does
+not matter). After signing in, users return to the page they came from, or to
+the home page. Pages that need a login send visitors there. "Sign out" in the
+header ends the session; logout only accepts POST, so other sites cannot sign
+users out with a link. Successful logins, failed logins and logouts are logged.
 
 ## Repositories
 
