@@ -9,7 +9,7 @@ Software Configuration Management course.
 dockerhub/      Django project (settings, root URLs, WSGI/ASGI)
 accounts/       Custom user model (AUTH_USER_MODEL = accounts.User)
 core/           Home page and health check endpoint
-repositories/   Image repositories (create, list own, ...)
+repositories/   Image repositories (create, list own, edit settings, ...)
 templates/      Shared templates (base.html)
 static/         Shared static files
 docs/           Class diagram
@@ -40,6 +40,7 @@ The app is then available at http://127.0.0.1:8000/:
 | Sign up | http://127.0.0.1:8000/accounts/register/ |
 | My repositories (regular users) | http://127.0.0.1:8000/repositories/ |
 | Create repository (regular users) | http://127.0.0.1:8000/repositories/new/ |
+| Repository settings (owner) | http://127.0.0.1:8000/repositories/&lt;id&gt;/settings/ |
 | Django admin | http://127.0.0.1:8000/admin/ |
 | Health check | http://127.0.0.1:8000/health/ |
 
@@ -75,6 +76,11 @@ Regular users see all their own repositories, public and private, at
 `/repositories/` ("My repositories" in the header). The list is sorted by last
 update, 12 per page, and shows each repository's star count. After creating a
 repository, the user is redirected to this list.
+
+The owner can change a repository's description and visibility at
+`/repositories/<id>/settings/` (the "Settings" button on the repository page).
+The name cannot be changed, because it is part of the image path. Other users
+get 404 and admins get 403.
 
 ## Configuration
 

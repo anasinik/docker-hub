@@ -57,6 +57,12 @@
                     {% endif %}
                 </div>
             </div>
+
+            {% if user == repository.owner %}
+                <a href="{% url 'repositories:settings' repository.pk %}" class="button-primary button-inline detail-actions">
+                    Settings
+                </a>
+            {% endif %}
         </div>
 
         {% if repository.description %}
