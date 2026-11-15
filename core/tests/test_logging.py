@@ -136,9 +136,10 @@ class RequestLoggingMiddlewareTests(TestCase):
         self.assertEqual(record.levelname, "ERROR")
 
     def test_path_cannot_forge_log_lines(self):
-        _, record = self.run_middleware(self.anonymous_request("/x\nUser logged in: username=root"))
+        _, record = self.run_middleware(self.anonymous_request("/x%0AUser logged in: username=root"))
 
         self.assertNotIn("\n", record.getMessage())
+        self.assertIn("/x\\nUser logged in", record.getMessage())
 
     @override_settings(LOG_REQUESTS_SKIP_PREFIXES=["/static/", "/health/"])
     def test_skipped_paths_are_not_logged(self):
