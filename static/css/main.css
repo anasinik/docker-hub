@@ -42,6 +42,23 @@ body {
     border-radius: 4px;
 }
 
+.nav-logout {
+    margin: 0;
+}
+
+.nav-logout button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
+.nav-logout button:hover {
+    text-decoration: underline;
+}
+
 /* Messages */
 
 .messages {

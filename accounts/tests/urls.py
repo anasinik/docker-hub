@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 from django.http import HttpResponse
-from django.urls import path
+from django.urls import include, path
 from django.views import View
 
 from accounts.permissions import (
@@ -38,6 +38,7 @@ class RegularUserView(RegularUserRequiredMixin, OkView):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("accounts/", include("accounts.urls")),
     path("fbv/super-admin/", super_admin_required(ok), name="fbv-super-admin"),
     path("fbv/admin/", admin_required(ok), name="fbv-admin"),
     path("fbv/regular-user/", regular_user_required(ok), name="fbv-regular-user"),
