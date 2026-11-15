@@ -37,3 +37,18 @@ class RepositoryForm(forms.ModelForm):
         if Repository.objects.filter(owner=self.owner, name=name).exists():
             raise ValidationError("You already have a repository with this name.", code="unique")
         return name
+
+
+class RepositorySettingsForm(forms.ModelForm):
+    """Change the description and visibility of an existing repository.
+
+    The name is not editable: it is part of the registry path ``owner/name``
+    that images are pushed to and pulled from.
+    """
+
+    class Meta:
+        model = Repository
+        fields = ("description", "visibility")
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 2}),
+        }

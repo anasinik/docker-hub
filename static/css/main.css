@@ -599,6 +599,10 @@ body {
     min-width: 0;
 }
 
+.detail-actions {
+    margin-left: auto;
+}
+
 .detail-name-row {
     display: flex;
     align-items: center;

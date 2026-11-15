@@ -2,16 +2,16 @@ import logging
 
 from django.contrib import messages
 from django.db.models import Q, Case, Count, IntegerField, Value, When
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
-from django.views.generic import CreateView, DetailView, ListView
+from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from accounts.permissions import RegularUserRequiredMixin
 from repositories.services.registry.base import RegistryError
 from repositories.services.registry.factory import get_registry_client
 
-from .forms import RepositoryForm
+from .forms import RepositoryForm, RepositorySettingsForm
 from .models import Repository, Visibility
 
 logger = logging.getLogger(__name__)
@@ -44,6 +44,36 @@ class RepositoryCreateView(RegularUserRequiredMixin, CreateView):
             repository.visibility,
         )
         messages.success(self.request, f"Repository {repository.registry_path} has been created.")
+        return response
+
+
+class RepositorySettingsView(RegularUserRequiredMixin, UpdateView):
+    """The owner changes a repository's description and visibility.
+
+    Other users get 404, so a private repository does not reveal that it exists.
+    """
+
+    form_class = RepositorySettingsForm
+    template_name = "repositories/repository_settings.html"
+    context_object_name = "repository"
+
+    def get_queryset(self):
+        return Repository.objects.filter(owner=self.request.user).select_related("owner")
+
+    def get_success_url(self):
+        return reverse("repositories:detail", args=[self.object.pk])
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        repository = self.object
+
+        logger.info(
+            "Repository settings updated: path=%s id=%s visibility=%s",
+            repository.registry_path,
+            repository.pk,
+            repository.visibility,
+        )
+        messages.success(self.request, f"Repository {repository.registry_path} has been updated.")
         return response
 
 
