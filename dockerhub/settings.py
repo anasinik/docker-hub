@@ -173,7 +173,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
 
 LOG_LEVEL = os.environ.get("DJANGO_LOG_LEVEL", "INFO").strip().upper()
-LOG_DIR = Path(os.environ.get("DJANGO_LOG_DIR", BASE_DIR / "logs"))
+LOG_DIR = Path(os.environ.get("DJANGO_LOG_DIR") or BASE_DIR / "logs")
 LOG_TO_FILE = env_bool("DJANGO_LOG_TO_FILE", default=True) and not TESTING
 
 LOG_REQUESTS_SKIP_PREFIXES = ["/" + STATIC_URL.lstrip("/"), "/health/", "/favicon.ico"]

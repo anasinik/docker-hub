@@ -141,7 +141,9 @@ logger.info("Repository created: path=%s id=%s", repository.registry_path, repos
 - Never log passwords, tokens or other secrets.
 - Fields passed as `extra={"repo_id": repository.pk}` become separate
   fields in `app.json.log`, so they can be searched in Elasticsearch. Rules:
-  - prefix keys with your app (`repo_id`, `repo_visibility`, `account_role`);
+  - use specific names (`repo_id`, `duration_ms`, `client_ip`), and prefix them
+    with your app when a name could mean different things (`repo_visibility`,
+    not `visibility`);
   - never use ECS names (`user`, `host`, `log`, `event`, `process`, `client`,
     `http`) or LogRecord attributes (`name`, `module`, `message`, ...);
   - values are plain strings, numbers or booleans, of the same type in every call.
@@ -151,9 +153,9 @@ logger.info("Repository created: path=%s id=%s", repository.registry_path, repos
 | --- | --- |
 | `DEBUG` | Details only needed while debugging (hidden by default) |
 | `INFO` | Normal events: user registered, logged in, repository created or deleted |
-| `WARNING` | Something unexpected that the app handled: failed login, forbidden action, registry retry |
-| `ERROR` | An operation failed: registry unreachable, unhandled exception |
-| `CRITICAL` | The app cannot work: database down |
+| `WARNING` | Something unexpected that the app handled: failed login, forbidden action, registry unavailable |
+| `ERROR` | An operation failed: database unavailable, unhandled exception |
+| `CRITICAL` | The whole app cannot work (not used yet) |
 
 Tests can check log messages with `self.assertLogs("repositories.views", level="INFO")`.
 
