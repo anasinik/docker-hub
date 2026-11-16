@@ -5,13 +5,13 @@ from django.db.models import Q, Case, Count, IntegerField, Value, When
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
-from django.views.generic import CreateView, DetailView, ListView, UpdateView
+from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from accounts.permissions import RegularUserRequiredMixin
 from repositories.services.registry.base import RegistryError
 from repositories.services.registry.factory import get_registry_client
 
-from .forms import RepositoryForm, RepositorySettingsForm
+from .forms import RepositoryDeleteForm, RepositoryForm, RepositorySettingsForm
 from .models import Repository, Visibility
 
 logger = logging.getLogger(__name__)
@@ -74,6 +74,43 @@ class RepositorySettingsView(RegularUserRequiredMixin, UpdateView):
             repository.visibility,
         )
         messages.success(self.request, f"Repository {repository.registry_path} has been updated.")
+        return response
+
+
+class RepositoryDeleteView(RegularUserRequiredMixin, DeleteView):
+    """The owner deletes a repository after typing its name to confirm.
+
+    Stars are deleted with it (cascade). Images in the registry will be removed
+    once the real registry exists (issues #24 and #26).
+    Other users get 404, so a private repository does not reveal that it exists.
+    """
+
+    form_class = RepositoryDeleteForm
+    template_name = "repositories/repository_confirm_delete.html"
+    context_object_name = "repository"
+    success_url = reverse_lazy("repositories:list")
+
+    def get_queryset(self):
+        return Repository.objects.filter(owner=self.request.user).select_related("owner")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["repository"] = self.object
+        return kwargs
+
+    def form_valid(self, form):
+        path = self.object.registry_path
+        repository_id = self.object.pk
+
+        response = super().form_valid(form)
+
+        logger.info(
+            "Repository deleted: path=%s id=%s",
+            path,
+            repository_id,
+            extra={"repo_id": repository_id},
+        )
+        messages.success(self.request, f"Repository {path} has been deleted.")
         return response
 
 

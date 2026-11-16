@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from accounts.models import User
-from repositories.forms import RepositoryForm, RepositorySettingsForm
+from repositories.forms import RepositoryDeleteForm, RepositoryForm, RepositorySettingsForm
 from repositories.models import Repository, Visibility
 
 PASSWORD = "Tr1cky-pass-2025"
@@ -155,3 +155,32 @@ class RepositorySettingsFormTests(TestCase):
 
                 self.assertFalse(form.is_valid())
                 self.assertIn("visibility", form.errors)
+
+
+class RepositoryDeleteFormTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.alice = User.objects.create_user(username="alice", email="alice@example.com", password=PASSWORD)
+        cls.repository = Repository.objects.create(owner=cls.alice, name="my-app")
+
+    def make_form(self, confirm_name):
+        return RepositoryDeleteForm(data={"confirm_name": confirm_name}, repository=self.repository)
+
+    def test_matching_name_is_valid(self):
+        self.assertTrue(self.make_form("my-app").is_valid())
+
+    def test_surrounding_whitespace_is_ignored(self):
+        self.assertTrue(self.make_form("  my-app ").is_valid())
+
+    def test_wrong_name_is_rejected(self):
+        for value in ("other", "MY-APP", "alice/my-app", ""):
+            with self.subTest(confirm_name=value):
+                form = self.make_form(value)
+
+                self.assertFalse(form.is_valid())
+                self.assertIn("confirm_name", form.errors)
+
+    def test_help_text_shows_repository_name(self):
+        form = RepositoryDeleteForm(repository=self.repository)
+
+        self.assertIn("<code>my-app</code>", form.fields["confirm_name"].help_text)

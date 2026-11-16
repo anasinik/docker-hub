@@ -35,5 +35,15 @@
         <p class="auth-switch">
             <a href="{% url 'repositories:detail' repository.pk %}">Cancel</a>
         </p>
+
+        <div class="danger-zone">
+            <h2>Danger zone</h2>
+            <p class="danger-text">
+                Deleting a repository removes it with all its data. This cannot be undone.
+            </p>
+            <a href="{% url 'repositories:delete' repository.pk %}" class="button-primary button-inline button-danger">
+                Delete repository
+            </a>
+        </div>
     </section>
 {% endblock %}
