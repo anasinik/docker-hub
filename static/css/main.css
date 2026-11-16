@@ -206,6 +206,35 @@ body {
     font-size: 0.875rem;
 }
 
+.button-danger {
+    background: #c62828;
+}
+
+.button-danger:hover {
+    background: #a31f1f;
+}
+
+a.button-danger {
+    display: inline-block;
+}
+
+.danger-zone {
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #f1c4c4;
+}
+
+.danger-zone h2 {
+    margin: 0 0 0.5rem;
+    color: #c62828;
+    font-size: 1.125rem;
+}
+
+.danger-text {
+    color: #5f6b7a;
+    font-size: 0.875rem;
+}
+
 /* Repository cards */
 
 .repo-card {

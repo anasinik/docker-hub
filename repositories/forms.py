@@ -1,5 +1,6 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils.html import format_html
 
 from .models import Repository
 
@@ -52,3 +53,21 @@ class RepositorySettingsForm(forms.ModelForm):
         widgets = {
             "description": forms.Textarea(attrs={"rows": 2}),
         }
+
+
+class RepositoryDeleteForm(forms.Form):
+    """Confirm deleting ``repository`` by typing its name."""
+
+    confirm_name = forms.CharField(label="Repository name", strip=True)
+
+    def __init__(self, *args, repository, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.repository = repository
+        self.fields["confirm_name"].widget.attrs["autocomplete"] = "off"
+        self.fields["confirm_name"].help_text = format_html("Type <code>{}</code> to confirm.", repository.name)
+
+    def clean_confirm_name(self):
+        confirm_name = self.cleaned_data["confirm_name"]
+        if confirm_name != self.repository.name:
+            raise ValidationError("The name does not match this repository.", code="mismatch")
+        return confirm_name
