@@ -9,7 +9,7 @@ Software Configuration Management course.
 dockerhub/      Django project (settings, root URLs, WSGI/ASGI)
 accounts/       Custom user model (AUTH_USER_MODEL = accounts.User)
 core/           Home page and health check endpoint
-repositories/   Image repositories (create, list own, edit settings, ...)
+repositories/   Image repositories (create, list own, edit settings, delete, ...)
 templates/      Shared templates (base.html)
 static/         Shared static files
 docs/           Class diagram
@@ -42,6 +42,7 @@ The app is then available at http://127.0.0.1:8000/:
 | My repositories (regular users) | http://127.0.0.1:8000/repositories/ |
 | Create repository (regular users) | http://127.0.0.1:8000/repositories/new/ |
 | Repository settings (owner) | http://127.0.0.1:8000/repositories/&lt;id&gt;/settings/ |
+| Delete repository (owner) | http://127.0.0.1:8000/repositories/&lt;id&gt;/delete/ |
 | Django admin | http://127.0.0.1:8000/admin/ |
 | Health check | http://127.0.0.1:8000/health/ |
 
@@ -88,6 +89,12 @@ The owner can change a repository's description and visibility at
 `/repositories/<id>/settings/` (the "Settings" button on the repository page).
 The name cannot be changed, because it is part of the image path. Other users
 get 404 and admins get 403.
+
+The owner deletes a repository from the "Danger zone" on its settings page, at
+`/repositories/<id>/delete/`. To confirm, the owner types the repository name.
+The repository and its stars are deleted, and the user is redirected to
+"My repositories". Images in the registry will be deleted too once the
+registry is set up.
 
 ## Configuration
 
