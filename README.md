@@ -10,6 +10,7 @@ dockerhub/      Django project (settings, root URLs, WSGI/ASGI)
 accounts/       Custom user model (AUTH_USER_MODEL = accounts.User)
 core/           Home page and health check endpoint
 repositories/   Image repositories (create, list own, edit settings, delete, ...)
+analytics/      Log analytics: Elasticsearch connection and log index
 templates/      Shared templates (base.html)
 static/         Shared static files
 docs/           Class diagram
@@ -19,6 +20,7 @@ docs/           Class diagram
 
 - Python 3.12+
 - PostgreSQL and Redis only for the production setup (`UKS_TEST_DB=OFF`)
+- Docker, only for Elasticsearch (log analytics); tests do not need it
 
 ## Local development
 
@@ -112,6 +114,10 @@ for the full list.
 | `DJANGO_LOG_LEVEL` | `INFO` | Lowest level that is logged |
 | `DJANGO_LOG_DIR` | `<project>/logs` | Directory of the log files |
 | `DJANGO_LOG_TO_FILE` | `True` | `False` logs to the console only |
+| `ELASTIC_PASSWORD` | | Password of the `elastic` user; required by `docker compose` |
+| `ELASTICSEARCH_URL` | `http://localhost:9200` | Elasticsearch address (`http://elasticsearch:9200` inside compose) |
+| `ELASTICSEARCH_USERNAME` | `elastic` | Elasticsearch user |
+| `ELASTICSEARCH_LOG_INDEX` | `dockerhub-logs` | Index that stores the logs |
 
 ## Logging
 
@@ -165,6 +171,38 @@ logger.info("Repository created: path=%s id=%s", repository.registry_path, repos
 | `CRITICAL` | The whole app cannot work (not used yet) |
 
 Tests can check log messages with `self.assertLogs("repositories.views", level="INFO")`.
+
+## Elasticsearch
+
+Logs from `app.json.log` are stored in Elasticsearch so the Analytics section
+can search them. Elasticsearch runs in Docker ([docker-compose.yml](docker-compose.yml)):
+a single node with authentication enabled and no TLS (local development only).
+
+```bash
+cp .env.example .env            # then set ELASTIC_PASSWORD
+docker compose up -d elasticsearch
+docker compose ps               # wait until the container is "healthy" (~30 s)
+curl -u elastic:<password> http://localhost:9200
+```
+
+The password is set only when the `es_data` volume is created. To start over
+with a new password, run `docker compose down -v` (this deletes all stored logs).
+
+The app connects with the `ELASTICSEARCH_*` settings
+([analytics/elasticsearch.py](analytics/elasticsearch.py)). The connection is lazy,
+so `runserver`, tests and CI work without Elasticsearch. Create the log index
+once (running it again only adds new fields to the mapping):
+
+```bash
+# Linux/macOS/Git Bash: export ELASTIC_PASSWORD=<password>   PowerShell: $env:ELASTIC_PASSWORD="<password>"
+python manage.py init_elasticsearch             # --recreate deletes the index first
+```
+
+The index mapping is `LogEntry` in [analytics/documents.py](analytics/documents.py):
+one field per key that `JsonFormatter` writes, plus the request fields
+(`http_status`, `duration_ms`, `client_ip`, ...). A new `extra={...}` field is
+mapped automatically as a `keyword`; add it to `LogEntry` if it needs another
+type (number, date, IP).
 
 ## Running tests
 

@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "accounts",
     "core",
     "repositories",
+    "analytics",
 ]
 
 MIDDLEWARE = [
@@ -127,6 +128,17 @@ else:
             "LOCATION": os.environ.get("REDIS_URL", "redis://redis:6379/0"),
         }
     }
+
+
+# Elasticsearch (log analytics)
+# The connection is lazy: nothing is sent until a command or view uses it,
+# so tests and CI run without an Elasticsearch server.
+
+ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
+ELASTICSEARCH_USERNAME = os.environ.get("ELASTICSEARCH_USERNAME", "elastic")
+ELASTICSEARCH_PASSWORD = os.environ.get("ELASTIC_PASSWORD", "")
+ELASTICSEARCH_TIMEOUT = int(os.environ.get("ELASTICSEARCH_TIMEOUT", "10"))
+ELASTICSEARCH_LOG_INDEX = os.environ.get("ELASTICSEARCH_LOG_INDEX", "dockerhub-logs")
 
 
 # Authentication
