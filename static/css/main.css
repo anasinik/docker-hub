@@ -1,3 +1,5 @@
+/* Global layout */
+
 body {
     margin: 0;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -7,8 +9,10 @@ body {
 
 .site-header {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
     padding: 0.75rem 1.5rem;
     background: #0b214a;
     color: #fff;
@@ -19,21 +23,21 @@ body {
     text-decoration: none;
 }
 
+.site-header nav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
 .brand {
-    font-weight: 600;
     font-size: 1.125rem;
+    font-weight: 600;
 }
 
 .content {
     max-width: 960px;
     margin: 2rem auto;
     padding: 0 1rem;
-}
-
-.site-header nav {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
 }
 
 .nav-button {
@@ -62,37 +66,37 @@ body {
 /* Messages */
 
 .messages {
-    list-style: none;
     margin: 0 0 1.5rem;
     padding: 0;
+    list-style: none;
 }
 
 .message {
     padding: 0.75rem 1rem;
+    border: 1px solid #b6cbef;
     border-radius: 4px;
     background: #e3ecfa;
-    border: 1px solid #b6cbef;
 }
 
 .message-success {
-    background: #e3f6ea;
     border-color: #a9dbbb;
+    background: #e3f6ea;
 }
 
 .message-error {
-    background: #fdecec;
     border-color: #f2b8b8;
+    background: #fdecec;
 }
 
-/* Auth forms */
+/* Authentication forms */
 
 .auth-card {
     max-width: 420px;
     margin: 0 auto;
     padding: 2rem;
-    background: #fff;
     border: 1px solid #dde3ea;
     border-radius: 8px;
+    background: #fff;
 }
 
 .auth-card h1 {
@@ -106,9 +110,9 @@ body {
     max-width: 560px;
     margin: 0 auto;
     padding: 2rem;
-    background: #fff;
     border: 1px solid #dde3ea;
     border-radius: 8px;
+    background: #fff;
 }
 
 .form-card h1 {
@@ -123,8 +127,8 @@ body {
 
 .form-intro code {
     padding: 0.125rem 0.375rem;
-    background: #eef2f6;
     border-radius: 4px;
+    background: #eef2f6;
 }
 
 .form-field {
@@ -242,9 +246,9 @@ a.button-danger {
     align-items: flex-start;
     gap: 1rem;
     padding: 1.25rem 1.5rem;
-    background: #fff;
     border: 1px solid #dce3eb;
     border-radius: 10px;
+    background: #fff;
     box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
     cursor: pointer;
     transition:
@@ -305,12 +309,6 @@ a.button-danger {
     color: #1759a6;
 }
 
-.repo-badge-official {
-    border-color: #c8dcfa;
-    background: #edf5ff;
-    color: #1759a6;
-}
-
 .repo-badge-verified {
     border-color: #b9dfd0;
     background: #edf8f3;
@@ -328,16 +326,16 @@ a.button-danger {
 }
 
 .repo-card-description {
+    display: -webkit-box;
     margin: 0 0 0.75rem;
+    overflow: hidden;
     color: #526174;
     font-size: 0.9375rem;
     line-height: 1.5;
     overflow-wrap: anywhere;
-    display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
     line-clamp: 3;
-    overflow: hidden;
 }
 
 .repo-card-description-empty {
@@ -347,9 +345,9 @@ a.button-danger {
 
 .repo-card-meta {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: 0.5rem;
     margin: auto 0 0;
     color: #8995a4;
@@ -367,7 +365,7 @@ a.button-danger {
     white-space: nowrap;
 }
 
-/* Repository list */
+/* Repository lists and shared section headers */
 
 .repository-list {
     display: grid;
@@ -391,8 +389,8 @@ a.button-danger {
 
 .repository-filters {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.75rem;
     margin-bottom: 1.5rem;
 }
@@ -409,6 +407,8 @@ a.button-danger {
 .repository-filters .button-primary {
     width: auto;
 }
+
+/* Search results shared by repository and user search */
 
 .search-results-count {
     margin-bottom: 1rem;
@@ -435,12 +435,12 @@ a.button-danger {
     opacity: 1;
 }
 
-/* Publisher badge filters */
+/* Publisher badge filters used by repository search */
 
 .badge-filter {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.75rem;
     margin: 0;
     padding: 0;
@@ -499,6 +499,8 @@ a.button-danger {
     color: #1f2933;
 }
 
+/* Header search */
+
 .header-search {
     display: flex;
     flex: 1 1 20rem;
@@ -536,28 +538,20 @@ a.button-danger {
     position: absolute;
     width: 1px;
     height: 1px;
-    padding: 0;
     margin: -1px;
+    padding: 0;
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
     border: 0;
-}
-
-.site-header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    white-space: nowrap;
 }
 
 /* Pagination */
 
 .pagination {
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     flex-wrap: wrap;
     gap: 0.75rem;
     margin-top: 2rem;
@@ -581,30 +575,6 @@ a.button-danger {
     font-size: 0.875rem;
 }
 
-/* Responsive layout */
-
-@media (max-width: 480px) {
-    .repo-card {
-        gap: 0.75rem;
-        padding: 1rem;
-    }
-
-    .repo-card-icon {
-        flex-basis: 40px;
-        width: 40px;
-        height: 40px;
-        font-size: 1.125rem;
-    }
-
-    .repo-card-name {
-        font-size: 1rem;
-    }
-
-    .repo-card-header {
-        gap: 0.375rem;
-    }
-}
-
 /* Repository details */
 
 .repository-detail {
@@ -613,13 +583,13 @@ a.button-danger {
     padding: 2rem 0 3rem;
 }
 
-/* Header */
+/* Repository detail header */
 
 .detail-header {
     padding: 1.75rem;
-    background: var(--surface-color, #ffffff);
     border: 1px solid var(--border-color, #e5e7eb);
     border-radius: 12px;
+    background: var(--surface-color, #ffffff);
 }
 
 .detail-heading {
@@ -630,9 +600,9 @@ a.button-danger {
 
 .detail-icon {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
     width: 56px;
     height: 56px;
     border-radius: 12px;
@@ -675,13 +645,13 @@ a.button-danger {
 }
 
 .visibility-badge.public {
-    color: #166534;
     background: #dcfce7;
+    color: #166534;
 }
 
 .visibility-badge.private {
-    color: #92400e;
     background: #fef3c7;
+    color: #92400e;
 }
 
 .detail-badges {
@@ -692,24 +662,24 @@ a.button-danger {
 }
 
 .repo-badge.official {
-    color: #1d4ed8;
     background: #dbeafe;
+    color: #1d4ed8;
 }
 
 .repo-badge.verified {
-    color: #166534;
     background: #dcfce7;
+    color: #166534;
 }
 
 .repo-badge.sponsored {
-    color: #6b21a8;
     background: #f3e8ff;
+    color: #6b21a8;
 }
 
 .detail-description {
     margin: 1.5rem 0 0;
-    line-height: 1.6;
     color: var(--text-color, #374151);
+    line-height: 1.6;
     overflow-wrap: anywhere;
 }
 
@@ -718,7 +688,7 @@ a.button-danger {
     font-style: italic;
 }
 
-/* Metadata */
+/* Repository detail metadata */
 
 .detail-meta {
     display: flex;
@@ -738,8 +708,8 @@ a.button-danger {
 }
 
 .meta-label {
-    font-weight: 600;
     color: var(--text-color, #374151);
+    font-weight: 600;
 }
 
 .star-count {
@@ -751,14 +721,14 @@ a.button-danger {
     color: #d69e36;
 }
 
-/* Sections */
+/* Repository detail sections */
 
 .detail-section {
     margin-top: 2rem;
     padding: 1.5rem;
-    background: var(--surface-color, #ffffff);
     border: 1px solid var(--border-color, #e5e7eb);
     border-radius: 12px;
+    background: var(--surface-color, #ffffff);
 }
 
 .section-heading {
@@ -789,7 +759,7 @@ a.button-danger {
     white-space: nowrap;
 }
 
-/* Tags table */
+/* Repository tags table */
 
 .tags-table-wrapper {
     width: 100%;
@@ -850,7 +820,7 @@ a.button-danger {
     white-space: nowrap;
 }
 
-/* Empty and error states */
+/* Repository detail empty and error states */
 
 .detail-message {
     padding: 2rem 1rem;
@@ -876,8 +846,8 @@ a.button-danger {
 }
 
 .detail-message.error {
-    color: #991b1b;
     background: #fef2f2;
+    color: #991b1b;
 }
 
 .starred-by-user {
@@ -888,6 +858,207 @@ a.button-danger {
     font-size: 0.7rem;
     font-weight: 600;
     white-space: nowrap;
+}
+
+/* User cards */
+
+.user-card {
+    align-items: flex-start;
+}
+
+.user-card .repo-card-body {
+    width: 100%;
+    min-width: 0;
+}
+
+.user-card .repo-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.user-card .repo-card-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.user-card-email {
+    overflow-wrap: anywhere;
+}
+
+.user-card .repo-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+}
+
+/* User search form */
+
+.user-search {
+    display: grid;
+    gap: 1rem;
+    margin: 1.25rem 0 1.5rem;
+    padding: 1.25rem;
+    border: 1px solid #dce3eb;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+}
+
+.user-search .search-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.user-search .search-input-group label {
+    color: #526174;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.user-search .search-input-group input {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid #c3ccd6;
+    border-radius: 6px;
+    background: #fff;
+    color: #1f2933;
+    font: inherit;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.user-search .search-input-group input:focus {
+    border-color: #1d63ed;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(29, 99, 237, 0.12);
+}
+
+/* User search publisher badge filters */
+
+.user-search .search-filters {
+    min-width: 0;
+    margin: 0;
+    padding: 0.9rem 1rem 1rem;
+    border: 1px solid #dce3eb;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.user-search .search-filters legend {
+    padding: 0 0.4rem;
+    color: #526174;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.user-search .filter-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+}
+
+.user-search .filter-group-title {
+    color: #526174;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.user-search .filter-options {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.user-search .filter-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.4rem 0.65rem;
+    border: 1px solid #dce3eb;
+    border-radius: 6px;
+    background: #fff;
+    color: #526174;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease;
+}
+
+.user-search .filter-option:hover {
+    border-color: #b8c7d9;
+    background: #f5f7fa;
+}
+
+.user-search .filter-option input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    accent-color: #1d63ed;
+    cursor: pointer;
+}
+
+/* User search actions */
+
+.user-search .search-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.user-search .search-actions .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-height: 2.5rem;
+    padding: 0.55rem 1rem;
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.user-search .search-actions .button-primary {
+    border: 0;
+    background: #1d63ed;
+    color: #fff;
+}
+
+.user-search .search-actions .button-primary:hover {
+    background: #1652c7;
+}
+
+.user-search .search-actions .button-secondary {
+    border: 1px solid #dce3eb;
+    background: #fff;
+    color: #526174;
+}
+
+.user-search .search-actions .button-secondary:hover {
+    border-color: #b8c7d9;
+    background: #f5f7fa;
+    color: #1f2933;
+}
+
+.user-search .search-actions .button:focus-visible {
+    outline: 3px solid rgba(29, 99, 237, 0.2);
+    outline-offset: 2px;
 }
 
 /* Responsive layout */
@@ -917,5 +1088,50 @@ a.button-danger {
     .tags-table th,
     .tags-table td {
         padding: 0.75rem 0.6rem;
+    }
+
+    .user-search {
+        padding: 1rem;
+    }
+
+    .user-search .filter-group {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.6rem;
+    }
+
+    .user-search .filter-options {
+        width: 100%;
+    }
+
+    .user-search .search-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .user-search .search-actions .button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .repo-card {
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+
+    .repo-card-icon {
+        flex-basis: 40px;
+        width: 40px;
+        height: 40px;
+        font-size: 1.125rem;
+    }
+
+    .repo-card-name {
+        font-size: 1rem;
+    }
+
+    .repo-card-header {
+        gap: 0.375rem;
     }
 }

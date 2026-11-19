@@ -1,0 +1,17 @@
+<div id="search-results" aria-live="polite">
+
+    <p class="search-results-count">
+        {{ paginator.count }} result{{ paginator.count|pluralize }}
+    </p>
+
+    {% if users %}
+        {% include "accounts/partials/user_list.html" with users=users only %}
+    {% else %}
+        <p class="search-empty">
+            No users match your search criteria.
+        </p>
+    {% endif %}
+
+    {% include "partials/pagination.html" with pagination_label="User pages" %}
+
+</div>
