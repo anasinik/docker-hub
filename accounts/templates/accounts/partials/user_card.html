@@ -23,9 +23,8 @@
             {{ account.email|default:"No email address provided." }}
         </p>
 
-        <div class="repo-card-meta">
-            <span>Regular user</span>
-            <span>Joined {{ account.date_joined|date:"M j, Y" }}</span>
+        <div class="user-card-meta">
+            <span class="user-joined"> Joined {{ account.date_joined|date:"M j, Y" }}</span>
         </div>
 
     </div>

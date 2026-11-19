@@ -7,6 +7,7 @@
         </div>
     </header>
 
+
     <form
         method="get"
         action="{% url 'accounts:list' %}"
@@ -23,12 +24,15 @@
                 id="user-search-query"
                 name="q"
                 value="{{ request.GET.q|default:'' }}"
-                placeholder="Username, email or name..."
+                placeholder="Search by username, email or name..."
+                aria-label="Search users"
                 autocomplete="off"
             >
         </div>
 
         <fieldset class="badge-filter">
+            <legend>Filter by badge</legend>
+
             <label class="badge-filter-option">
                 <input
                     type="checkbox"
