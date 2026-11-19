@@ -1,0 +1,20 @@
+<div
+    id="search-content"
+    hx-boost="true"
+    hx-target="#search-content"
+    hx-swap="outerHTML"
+    hx-push-url="true"
+>
+
+    <h1>
+        Search results
+        {% if request.GET.q %}
+            for "{{ request.GET.q }}"
+        {% endif %}
+    </h1>
+
+    {% include "repositories/partials/repository_filters.html" %}
+
+    {% include "repositories/partials/search_results.html" %}
+
+</div>

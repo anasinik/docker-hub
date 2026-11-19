@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Settings · {{ repository.registry_path }} · Docker Hub{% endblock %}
+
+{% block content %}
+    <section class="form-card">
+        <h1>Repository settings</h1>
+        <p class="form-intro">
+            <code>{{ repository.registry_path }}</code>
+        </p>
+
+        <form method="post" action="{% url 'repositories:settings' repository.pk %}">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="form-errors" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            {% for field in form %}
+                <div class="form-field{% if field.errors %} has-error{% endif %}">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.errors %}
+                        <div class="field-errors" role="alert">{{ field.errors }}</div>
+                    {% endif %}
+                    {% if field.help_text %}
+                        <div class="help-text">{{ field.help_text|safe }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <button type="submit" class="button-primary">Save</button>
+        </form>
+
+        <p class="auth-switch">
+            <a href="{% url 'repositories:detail' repository.pk %}">Cancel</a>
+        </p>
+
+        <div class="danger-zone">
+            <h2>Danger zone</h2>
+            <p class="danger-text">
+                Deleting a repository removes it with all its data. This cannot be undone.
+            </p>
+            <a href="{% url 'repositories:delete' repository.pk %}" class="button-primary button-inline button-danger">
+                Delete repository
+            </a>
+        </div>
+    </section>
+{% endblock %}

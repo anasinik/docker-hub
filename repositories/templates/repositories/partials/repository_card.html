@@ -1,0 +1,74 @@
+<article class="repo-card" hx-on:click="window.location.href = '/repositories/{{ repository.id }}'">
+    <div class="repo-card-body">
+        <div class="repo-card-header">
+            <h2 class="repo-card-name">
+                {% if repository.is_official %}
+                    {{ repository.name }}
+                {% else %}
+                    {{ repository.registry_path }}
+                {% endif %}
+            </h2>
+
+            {# Repository badges #}
+
+            {% if repository.is_official %}
+                <span class="repo-badge repo-badge-official">
+                    Docker Official Image
+                </span>
+            {% endif %}
+
+            {% if repository.owner.badge == "VERIFIED_PUBLISHER" %}
+                <span class="repo-badge repo-badge-verified">
+                    Verified Publisher
+                </span>
+            {% elif repository.owner.badge == "SPONSORED_OSS" %}
+                <span class="repo-badge repo-badge-sponsored">
+                    Sponsored OSS
+                </span>
+            {% endif %}
+
+            {% if not repository.is_public %}
+                <span class="repo-badge">
+                    <svg width="12" height="12"
+                         viewBox="0 0 16 16"
+                         aria-hidden="true"
+                         focusable="false">
+                        <path fill="currentColor"
+                              fill-rule="evenodd"
+                              d="M4 7V5a4 4 0 1 1 8 0v2h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1zm2 0h4V5a2 2 0 1 0-4 0v2z"/>
+                    </svg>
+                    Private
+                </span>
+            {% endif %}
+        </div>
+
+        {% if repository.description %}
+            <p class="repo-card-description">
+                {{ repository.description }}
+            </p>
+        {% else %}
+            <p class="repo-card-description repo-card-description-empty">
+                No description
+            </p>
+        {% endif %}
+
+        <div class="repo-card-meta">
+            <span class="repo-card-stars">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                >
+                    <path d="M12 2.5l2.93 5.94 6.56.95-4.75 4.63 1.12 6.53L12 17.47l-5.86 3.08 1.12-6.53-4.75-4.63 6.56-.95L12 2.5z"/>
+                </svg>
+                {{ repository.star_count }}
+            </span>
+            <span>
+                Updated {{ repository.updated_at|timesince }} ago
+            </span>
+        </div>
+    </div>
+</article>

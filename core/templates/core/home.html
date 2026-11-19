@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <section class="home-intro">
+        <h1>Docker Hub</h1>
+        <p>Find, share and manage container images.</p>
+    </section>
+
+    <section aria-labelledby="repositories-title">
+        <div class="section-header">
+            <h2 id="repositories-title">
+                Recently updated repositories
+            </h2>
+
+            <a href="{% url 'repository_search' %}" class="filter-clear">
+                View all
+            </a>
+        </div>
+
+        {% include "repositories/partials/repository_list.html" with repositories=repositories only %}
+    </section>
+{% endblock %}
