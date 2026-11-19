@@ -80,7 +80,7 @@ class UserSearchView(AdminRequiredMixin, ListView):
         return [self.template_name]
 
     def get_queryset(self):
-        queryset = User.objects
+        queryset = User.objects.filter(role=Role.REGULAR_USER)
         selected_badges = self.request.GET.getlist("badge")
 
         if selected_badges:
