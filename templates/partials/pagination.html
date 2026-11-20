@@ -9,7 +9,7 @@
             <a
                 href="?{% if querystring %}{{ querystring }}&{% endif %}page=1"
                 hx-get="?{% if querystring %}{{ querystring }}&{% endif %}page=1"
-                hx-target="#search-content"
+                hx-target="{{ content_id|default:'#search-content' }}"
                 hx-swap="outerHTML"
                 hx-push-url="true"
             >
@@ -19,7 +19,7 @@
             <a
                 href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}"
                 hx-get="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}"
-                hx-target="#search-content"
+                hx-target="{{ content_id|default:'#search-content' }}"
                 hx-swap="outerHTML"
                 hx-push-url="true"
             >
@@ -35,7 +35,7 @@
             <a
                 href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}"
                 hx-get="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}"
-                hx-target="#search-content"
+                hx-target="{{ content_id|default:'#search-content' }}"
                 hx-swap="outerHTML"
                 hx-push-url="true"
             >
@@ -45,7 +45,7 @@
             <a
                 href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ paginator.num_pages }}"
                 hx-get="?{% if querystring %}{{ querystring }}&{% endif %}page={{ paginator.num_pages }}"
-                hx-target="#search-content"
+                hx-target="{{ content_id|default:'#search-content' }}"
                 hx-swap="outerHTML"
                 hx-push-url="true"
             >
