@@ -1,0 +1,79 @@
+<div id="search-content">
+
+    <header class="section-header">
+        <div>
+            <h1>Users</h1>
+            <p>Search and manage registered users.</p>
+        </div>
+    </header>
+
+
+    <form
+        method="get"
+        action="{% url 'accounts:list' %}"
+        class="repository-search user-search"
+        hx-get="{% url 'accounts:list' %}"
+        hx-target="#search-content"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-trigger="submit"
+    >
+        <div class="search-input-group">
+            <input
+                type="search"
+                id="user-search-query"
+                name="q"
+                value="{{ request.GET.q|default:'' }}"
+                placeholder="Search by username, email or name..."
+                aria-label="Search users"
+                autocomplete="off"
+            >
+        </div>
+
+        <fieldset class="badge-filter">
+            <legend>Filter by badge</legend>
+
+            <label class="badge-filter-option">
+                <input
+                    type="checkbox"
+                    name="badge"
+                    value="VERIFIED_PUBLISHER"
+                    {% if "VERIFIED_PUBLISHER" in selected_badges %}checked{% endif %}
+                >
+                Verified Publisher
+            </label>
+
+            <label class="badge-filter-option">
+                <input
+                    type="checkbox"
+                    name="badge"
+                    value="SPONSORED_OSS"
+                    {% if "SPONSORED_OSS" in selected_badges %}checked{% endif %}
+                >
+                Sponsored OSS
+            </label>
+        </fieldset>
+
+        <div class="search-actions">
+            <button type="submit" class="button button-primary">
+                Search
+            </button>
+
+            {% if query or selected_badges %}
+                <a
+                    href="{% url 'accounts:list' %}{% if query %}?q={{ query|urlencode }}{% endif %}"
+                    class="filter-clear"
+                    hx-get="{% url 'accounts:list' %}{% if query %}?q={{ query|urlencode }}{% endif %}"
+                    hx-target="#search-content"
+                    hx-swap="outerHTML"
+                    hx-push-url="true"
+                >
+                    Clear filters
+                </a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% include "accounts/partials/user_search_results.html" %}
+
+</div>

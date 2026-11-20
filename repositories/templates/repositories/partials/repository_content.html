@@ -1,0 +1,4 @@
+<div id="repository-results">
+    {% include "repositories/partials/repository_list.html" with repositories=page_obj empty_message="You don't have any repositories yet." only %}
+    {% include "partials/pagination.html" with content_id="#repository-results" pagination_label="Repository pages" %}
+</div>

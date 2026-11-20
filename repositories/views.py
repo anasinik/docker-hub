@@ -114,12 +114,24 @@ class RepositoryDeleteView(RegularUserRequiredMixin, DeleteView):
         return response
 
 
+@method_decorator(vary_on_headers("HX-Request", "HX-History-Restore-Request"), name="dispatch")
 class UserRepositoryListView(RegularUserRequiredMixin, ListView):
     """The logged-in user's own repositories, public and private."""
 
     template_name = "repositories/repository_list.html"
     context_object_name = "repositories"
     paginate_by = 12
+    
+    def get_template_names(self):
+        is_htmx = self.request.headers.get("HX-Request") == "true"
+        is_history_restore = (
+            self.request.headers.get("HX-History-Restore-Request") == "true"
+        )
+
+        if is_htmx and not is_history_restore:
+            return ["repositories/partials/repository_content.html"]
+
+        return [self.template_name]
 
     def get_queryset(self):
         return (
@@ -131,7 +143,7 @@ class UserRepositoryListView(RegularUserRequiredMixin, ListView):
         )
 
 
-@method_decorator(vary_on_headers("HX-Request", "HX-History-Restore-Request"), name="dispatch",)
+@method_decorator(vary_on_headers("HX-Request", "HX-History-Restore-Request"), name="dispatch")
 class RepositoryListView(ListView):
     model = Repository
     template_name = "repositories/repository_search.html"

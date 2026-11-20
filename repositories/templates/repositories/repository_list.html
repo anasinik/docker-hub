@@ -3,7 +3,7 @@
 {% block title %}My repositories | Docker Hub{% endblock %}
 
 {% block content %}
-    <section aria-labelledby="repositories-title">
+    <section aria-labelledby="repositories-title" >
         <div class="section-header">
             <h1 id="repositories-title">My repositories</h1>
 
@@ -12,8 +12,6 @@
             </a>
         </div>
 
-        {% include "repositories/partials/repository_list.html" with repositories=page_obj empty_message="You don't have any repositories yet." only %}
-
-        {% include "repositories/partials/pagination.html" %}
+        {% include "repositories/partials/repository_content.html" %}
     </section>
 {% endblock %}

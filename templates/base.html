@@ -50,7 +50,12 @@
                         Create repository
                     </a>
                 {% endif %}
+                {% if user.is_admin %}
+                    <a href="{% url 'accounts:list' %}" class="nav-button">
+                        Accounts
+                    </a>
 
+                {% endif %}
                 <span>{{ user.username }}</span>
 
                 <form action="{% url 'accounts:logout' %}" method="post" class="nav-logout">
