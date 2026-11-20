@@ -4,3 +4,4 @@ redis>=5.0,<9
 gunicorn>=23.0
 elasticsearch>=8.15,<8.16
 elasticsearch-dsl>=8.15,<8.16
+requests>=2.32,<3
