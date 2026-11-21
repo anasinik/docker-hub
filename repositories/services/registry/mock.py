@@ -1,5 +1,8 @@
 
 class MockRegistryClient:
+    def is_available(self):
+        return True
+
     def list_tags(self, repository):
         return [
             {

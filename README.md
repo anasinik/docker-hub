@@ -14,13 +14,14 @@ analytics/      Log analytics: Elasticsearch connection and log index
 templates/      Shared templates (base.html)
 static/         Shared static files
 docs/           Class diagram
+registry/       Configuration of the container registry (Distribution)
 ```
 
 ## Requirements
 
 - Python 3.12+
 - PostgreSQL and Redis only for the production setup (`UKS_TEST_DB=OFF`)
-- Docker, only for Elasticsearch (log analytics); tests do not need it
+- Docker, only for Elasticsearch (log analytics) and the container registry; tests do not need it
 
 ## Local development
 
@@ -118,6 +119,10 @@ for the full list.
 | `ELASTICSEARCH_URL` | `http://localhost:9200` | Elasticsearch address (`http://elasticsearch:9200` inside compose) |
 | `ELASTICSEARCH_USERNAME` | `elastic` | Elasticsearch user |
 | `ELASTICSEARCH_LOG_INDEX` | `dockerhub-logs` | Index that stores the logs |
+| `REGISTRY_PORT` | `5000` | Host port of the registry container (`docker compose`) |
+| `REGISTRY_URL` | `http://localhost:5000` | Registry address (`http://registry:5000` inside compose) |
+| `REGISTRY_TIMEOUT` | `5` | Seconds to wait for the registry |
+| `REGISTRY_CLIENT_CLASS` | `...mock.MockRegistryClient` | Registry client; `repositories.services.registry.http.HttpRegistryClient` uses the real registry |
 
 ## Logging
 
@@ -203,6 +208,47 @@ one field per key that `JsonFormatter` writes, plus the request fields
 (`http_status`, `duration_ms`, `client_ip`, ...). A new `extra={...}` field is
 mapped automatically as a `keyword`; add it to `LogEntry` if it needs another
 type (number, date, IP).
+
+## Container registry
+
+Images are stored in our own registry, [Distribution](https://distribution.github.io/distribution/)
+(`registry:2`), which runs as the `registry` service in
+[docker-compose.yml](docker-compose.yml). Its configuration is
+[registry/config.yml](registry/config.yml): images are kept in the
+`registry_data` volume and deleting through the API is enabled.
+
+```bash
+cp .env.example .env            # compose needs ELASTIC_PASSWORD even for this service
+docker compose up -d registry
+docker compose ps               # wait until the container is "healthy" (~10 s)
+python manage.py check_registry # "Registry at http://localhost:5000 is available."
+```
+
+Try a push and a pull (Docker trusts `localhost` registries without TLS):
+
+```bash
+docker pull alpine:3.20
+docker tag alpine:3.20 localhost:5000/<username>/alpine:1.0
+docker push localhost:5000/<username>/alpine:1.0
+
+curl http://localhost:5000/v2/_catalog                  # {"repositories":["<username>/alpine"]}
+curl http://localhost:5000/v2/<username>/alpine/tags/list
+
+docker rmi localhost:5000/<username>/alpine:1.0
+docker pull localhost:5000/<username>/alpine:1.0
+```
+
+The registry has no authentication yet: anyone who can reach port 5000 can push
+and pull. Pushed images are not shown in the app yet, and the app uses
+`MockRegistryClient` by default, so `runserver`, tests and CI work without the
+container. To delete all images, run `docker compose rm -sf registry` and then
+`docker volume rm docker-hub_registry_data` (`docker compose down -v` would also
+delete the Elasticsearch logs).
+
+If the registry runs on another computer, Docker only pushes to it without TLS
+after adding `"insecure-registries": ["<ip>:5000"]` to the Docker daemon
+settings (Docker Desktop: Settings > Docker Engine), and the app needs
+`REGISTRY_URL=http://<ip>:5000`.
 
 ## Running tests
 

@@ -1,0 +1,40 @@
+# Configuration of the Distribution (registry:2) container, see
+# https://distribution.github.io/distribution/about/configuration/
+version: 0.1
+
+log:
+  level: info
+  fields:
+    service: registry
+
+storage:
+  filesystem:
+    # Mounted from the registry_data volume in docker-compose.yml
+    rootdirectory: /var/lib/registry
+  # Allows deleting manifests through the API (deleting tags and repositories)
+  delete:
+    enabled: true
+  cache:
+    blobdescriptor: inmemory
+  maintenance:
+    # Remove unfinished uploads older than a week
+    uploadpurging:
+      enabled: true
+      age: 168h
+      interval: 24h
+      dryrun: false
+
+http:
+  addr: :5000
+  headers:
+    X-Content-Type-Options: [nosniff]
+  # Internal port with /debug/health, used by the docker compose health check.
+  # It stays open when authentication is added to port 5000.
+  debug:
+    addr: :5001
+
+health:
+  storagedriver:
+    enabled: true
+    interval: 10s
+    threshold: 3

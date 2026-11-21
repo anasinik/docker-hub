@@ -91,7 +91,14 @@ WSGI_APPLICATION = "dockerhub.wsgi.application"
 
 # Registry
 
-REGISTRY_CLIENT_CLASS = "repositories.services.registry.mock.MockRegistryClient"
+# Mock client by default, so runserver, tests and CI work without a registry.
+# HttpRegistryClient talks to the registry container (docker-compose.yml).
+REGISTRY_CLIENT_CLASS = os.environ.get(
+    "REGISTRY_CLIENT_CLASS", "repositories.services.registry.mock.MockRegistryClient"
+)
+# http://registry:5000 when the app runs inside docker compose
+REGISTRY_URL = os.environ.get("REGISTRY_URL", "http://localhost:5000")
+REGISTRY_TIMEOUT = float(os.environ.get("REGISTRY_TIMEOUT", "5"))
 
 # Database and cache
 # UKS_TEST_DB=ON  -> SQLite + local memory cache (tests, CI, local development)
