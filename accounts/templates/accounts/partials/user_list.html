@@ -1,8 +1,6 @@
-
 <div class="repository-list">
-
     {% for account in users %}
-        {% include "accounts/partials/user_card.html" with account=account %}
+        {% include "accounts/partials/admin_user_card.html" with account=account badge_assignment_choices=badge_assignment_choices query=query selected_badges=selected_badges %}
     {% empty %}
         <div class="empty-state">
             <h3>No users found</h3>
@@ -11,4 +9,5 @@
             </p>
         </div>
     {% endfor %}
+
 </div>

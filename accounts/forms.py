@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, BaseUserCreationForm, UsernameField
 from django.core.exceptions import ValidationError
 
-from .models import User
+from .models import Badge, User
 from .validators import validate_not_reserved_username
 
 EMAIL_MAX_LENGTH = 254
@@ -72,3 +72,14 @@ class SignUpForm(BaseUserCreationForm):
         if User.objects.filter(email__iexact=email).exists():
             raise ValidationError("A user with this email already exists.", code="unique")
         return email
+
+class UserBadgeAssignmentForm(forms.Form):
+    badge = forms.ChoiceField(choices=Badge.choices, required=False, label="Publisher badge")
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        if "badge" not in self.data:
+            self.add_error("badge", "Please select a badge.")
+
+        return cleaned_data

@@ -1,0 +1,25 @@
+<div class="repo-card-header">
+    <h3 class="repo-card-name">
+        {{ account.username }}
+    </h3>
+
+    {% if account.badge == "VERIFIED_PUBLISHER" %}
+        <span class="repo-badge verified">
+            Verified Publisher
+        </span>
+    {% elif account.badge == "SPONSORED_OSS" %}
+        <span class="repo-badge sponsored">
+            Sponsored OSS
+        </span>
+    {% endif %}
+</div>
+
+<p class="repo-card-description user-card-email">
+    {{ account.email|default:"No email address provided." }}
+</p>
+
+<div class="user-card-meta">
+    <span class="user-joined">
+        Joined {{ account.date_joined|date:"M j, Y" }}
+    </span>
+</div>

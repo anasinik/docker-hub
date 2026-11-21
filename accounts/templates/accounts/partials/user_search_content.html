@@ -7,6 +7,15 @@
         </div>
     </header>
 
+    {% if badge_update_message %}
+        <p class="message message-success" role="status">
+            {{ badge_update_message }}
+        </p>
+    {% elif badge_update_error %}
+        <p class="message message-error" role="alert">
+            {{ badge_update_error }}
+        </p>
+    {% endif %}
 
     <form
         method="get"

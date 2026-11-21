@@ -16,6 +16,9 @@ class Badge(models.TextChoices):
     NONE = "NONE", "", 
     VERIFIED_PUBLISHER = "VERIFIED_PUBLISHER", "Verified publisher" 
     SPONSORED_OSS = "SPONSORED_OSS", "Sponsored OSS"
+    
+    def get_valid_badges():
+        return {Badge.VERIFIED_PUBLISHER, Badge.SPONSORED_OSS}
 
 
 ADMIN_ROLES = (Role.SUPER_ADMIN, Role.ADMIN)
