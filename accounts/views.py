@@ -147,25 +147,16 @@ class UserBadgeAssignView(AdminRequiredMixin, View):
             account.badge = form.cleaned_data["badge"]
             account.save(update_fields=["badge"])
 
-            logger.info(
-                "User badge updated: username=%s badge=%s by=%s",
-                account.username,
-                account.badge,
-                request.user.username,
-            )
+            logger.info("User badge updated: username=%s badge=%s by=%s", account.username, account.badge, request.user.username)
 
             success_message = f"Badge for user '{account.username}' has been updated."
+
             if is_htmx:
                 return self.render_search_content(badge_update_message=success_message)
 
             messages.success(request, success_message)
-
         else:
-            logger.warning(
-                "Invalid badge assignment: username=%s by=%s",
-                account.username,
-                request.user.username,
-            )
+            logger.warning("Invalid badge assignment: username=%s by=%s", account.username, request.user.username)
 
             if is_htmx:
                 return self.render_search_content(badge_update_error="Invalid badge selection.")
@@ -174,9 +165,7 @@ class UserBadgeAssignView(AdminRequiredMixin, View):
 
         return redirect(self.get_success_url())
 
-    def render_search_content(self, **extra_context):
-        """Render the updated user search results for an HTMX request."""
-
+    def get_search_params(self):
         params = QueryDict("", mutable=True)
         query = self.request.POST.get("q", "").strip()
 
@@ -189,10 +178,13 @@ class UserBadgeAssignView(AdminRequiredMixin, View):
             if badge in valid_badges:
                 params.appendlist("badge", badge)
 
+        return params
+
+    def render_search_content(self, **extra_context):
         search_view = UserSearchView()
         search_view.setup(self.request)
 
-        search_view.search_params = params
+        search_view.search_params = self.get_search_params()
         queryset = search_view.get_queryset()
         context = search_view.get_context_data(object_list=queryset)
 
@@ -201,23 +193,7 @@ class UserBadgeAssignView(AdminRequiredMixin, View):
         return render(self.request, "accounts/partials/user_search_content.html", context)
 
     def get_success_url(self):
-        """Return to the user search while preserving active filters."""
-
-        params = QueryDict("", mutable=True)
-        query = self.request.POST.get("q", "").strip()
-
-        if query:
-            params["q"] = query
-
-        valid_badges = Badge.get_valid_badges()
-
-        for badge in self.request.POST.getlist("filter_badge"):
-            if badge in valid_badges:
-                params.appendlist("badge", badge)
-
+        params = self.get_search_params()
         url = reverse("accounts:list")
 
-        if params:
-            return f"{url}?{params.urlencode()}"
-
-        return url
+        return f"{url}?{params.urlencode()}" if params else url
