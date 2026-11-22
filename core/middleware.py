@@ -3,6 +3,8 @@ import time
 
 from django.conf import settings
 
+from core.client_ip import get_client_ip
+
 logger = logging.getLogger("dockerhub.requests")
 
 
@@ -32,7 +34,7 @@ class RequestLoggingMiddleware:
         # request.user is missing when an earlier middleware answered before
         user = getattr(request, "user", None)
         username = user.get_username() if user is not None and user.is_authenticated else None
-        ip = request.META.get("REMOTE_ADDR")
+        ip = get_client_ip(request) 
         path = repr(request.path)[1:-1]  # escape newlines so nobody can fake log lines
 
         logger.log(
