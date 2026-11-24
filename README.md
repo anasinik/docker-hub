@@ -14,14 +14,14 @@ analytics/      Log analytics: Elasticsearch connection and log index
 templates/      Shared templates (base.html)
 static/         Shared static files
 docs/           Class diagram
-registry/       Configuration of the container registry (Distribution)
+docker/         Configuration of the docker containers
 ```
 
 ## Requirements
 
 - Python 3.12+
 - PostgreSQL and Redis only for the production setup (`UKS_TEST_DB=OFF`)
-- Docker, only for Elasticsearch (log analytics) and the container registry; tests do not need it
+- Docker, only for Elasticsearch (log analytics), Nginx, and the container registry; tests do not need it
 
 ## Local development
 
@@ -211,44 +211,114 @@ type (number, date, IP).
 
 ## Container registry
 
-Images are stored in our own registry, [Distribution](https://distribution.github.io/distribution/)
-(`registry:2`), which runs as the `registry` service in
-[docker-compose.yml](docker-compose.yml). Its configuration is
-[registry/config.yml](registry/config.yml): images are kept in the
-`registry_data` volume and deleting through the API is enabled.
+Images are stored in our own registry, [Distribution](https://distribution.github.io/distribution/) (`registry:2`), which runs as the `registry` service in [docker-compose.yml](docker-compose.yml).
+
+The registry is configured in [docker/registry/config.yml](docker/registry/config.yml). Images are stored in the `registry_data` volume, and registry deletion through the API is enabled.
+
+The registry is accessible to external Docker clients through the Nginx reverse proxy at `https://registry.example.com`. Nginx terminates TLS and forwards Registry API requests to the internal `registry:5000` endpoint.
+
+Django accesses the registry directly through the internal Docker network using `http://registry:5000`.
+
+### Local HTTPS setup
+
+Install [mkcert](https://github.com/FiloSottile/mkcert) and initialize its local CA:
 
 ```bash
-cp .env.example .env            # compose needs ELASTIC_PASSWORD even for this service
-docker compose up -d registry
-docker compose ps               # wait until the container is "healthy" (~10 s)
-python manage.py check_registry # "Registry at http://localhost:5000 is available."
+mkcert -install
 ```
 
-Try a push and a pull (Docker trusts `localhost` registries without TLS):
+Create the directory for Nginx certificates:
+
+```bash
+mkdir -p docker/nginx/certs
+```
+
+Generate the application certificate:
+
+```bash
+mkcert \
+  -cert-file docker/nginx/certs/app-cert.pem \
+  -key-file docker/nginx/certs/app-key.pem \
+  localhost 127.0.0.1 ::1
+```
+
+Generate the registry certificate:
+
+```bash
+mkcert \
+  -cert-file docker/nginx/certs/registry-cert.pem \
+  -key-file docker/nginx/certs/registry-key.pem \
+  registry.example.com
+```
+
+Add the following entry to the system hosts file:
+
+```text
+127.0.0.1 registry.example.com
+```
+
+On Windows, edit `C:\Windows\System32\drivers\etc\hosts` as Administrator. On Linux/macOS, edit `/etc/hosts`.
+
+Start the registry and Nginx:
+
+```bash
+cp .env.example .env
+# Set ELASTIC_PASSWORD in .env (required by docker-compose.yml).
+
+docker compose up -d registry nginx
+docker compose ps
+```
+
+Check that the Registry API is reachable through Nginx:
+
+**Windows (PowerShell, using curl with Schannel):**
+
+```powershell
+curl.exe --ssl-no-revoke -i https://registry.example.com/v2/
+```
+
+**Linux/macOS:**
+
+```bash
+curl -i https://registry.example.com/v2/
+```
+
+On Windows, `--ssl-no-revoke` may be needed when using locally generated `mkcert` certificates.
+A successful unauthenticated request currently returns HTTP 200 and `{}`.
+
+### Push and pull images
+
+Docker clients must use the Nginx hostname rather than the internal registry service name.
 
 ```bash
 docker pull alpine:3.20
-docker tag alpine:3.20 localhost:5000/<username>/alpine:1.0
-docker push localhost:5000/<username>/alpine:1.0
 
-curl http://localhost:5000/v2/_catalog                  # {"repositories":["<username>/alpine"]}
-curl http://localhost:5000/v2/<username>/alpine/tags/list
+docker tag alpine:3.20 registry.example.com/<username>/alpine:1.0
 
-docker rmi localhost:5000/<username>/alpine:1.0
-docker pull localhost:5000/<username>/alpine:1.0
+docker push registry.example.com/<username>/alpine:1.0
+
+docker pull registry.example.com/<username>/alpine:1.0
 ```
 
-The registry has no authentication yet: anyone who can reach port 5000 can push
-and pull. Pushed images are not shown in the app yet, and the app uses
-`MockRegistryClient` by default, so `runserver`, tests and CI work without the
-container. To delete all images, run `docker compose rm -sf registry` and then
-`docker volume rm docker-hub_registry_data` (`docker compose down -v` would also
-delete the Elasticsearch logs).
+Inspect the registry contents:
 
-If the registry runs on another computer, Docker only pushes to it without TLS
-after adding `"insecure-registries": ["<ip>:5000"]` to the Docker daemon
-settings (Docker Desktop: Settings > Docker Engine), and the app needs
-`REGISTRY_URL=http://<ip>:5000`.
+```bash
+curl https://registry.example.com/v2/_catalog
+
+curl https://registry.example.com/v2/<username>/alpine/tags/list
+```
+
+Remove the local image if needed:
+
+```bash
+docker rmi registry.example.com/<username>/alpine:1.0
+```
+
+The registry currently has no authentication. Anyone who can reach its public endpoint can push and pull images. Do not expose this development setup to untrusted networks. Authentication and authorization will be implemented separately.
+
+Pushed images are not shown in the application yet, and the app uses `MockRegistryClient` by default, so `runserver`, tests and CI work without the container.
+
+To delete all images, stop and remove the registry container, then remove the `registry_data` volume. Avoid `docker compose down -v` if you want to preserve Elasticsearch logs.
 
 ## Running tests
 

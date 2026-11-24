@@ -25,6 +25,7 @@ storage:
       dryrun: false
 
 http:
+  host: https://registry.example.com
   addr: :5000
   headers:
     X-Content-Type-Options: [nosniff]
