@@ -33,6 +33,8 @@ services:
   registry:
     image: registry:2.8.3
     container_name: dockerhub-registry
+    ports:
+      - "127.0.0.1:${REGISTRY_PORT:-5000}:5000"
     volumes:
       - registry_data:/var/lib/registry
       - ./docker/registry/config.yml:/etc/docker/registry/config.yml:ro
