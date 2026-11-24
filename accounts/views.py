@@ -3,16 +3,17 @@ import logging
 from django.contrib import messages
 from django.contrib.auth import login
 from django.db.models import Q, Case, IntegerField, Value, When
+from django.http import QueryDict
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from django.contrib.auth.views import LoginView, LogoutView
-from django.shortcuts import redirect
-from django.urls import reverse_lazy
-from django.views.generic import FormView, ListView
+from django.shortcuts import redirect, get_object_or_404, render
+from django.urls import reverse, reverse_lazy
+from django.views.generic import FormView, ListView, View
 
 from accounts.permissions import AdminRequiredMixin
 
-from .forms import LoginForm, SignUpForm
+from .forms import LoginForm, SignUpForm, UserBadgeAssignmentForm
 from .models import Badge, Role, User
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,9 @@ class UserSearchView(AdminRequiredMixin, ListView):
     context_object_name = "users"
     paginate_by = 12
 
+    def get_search_params(self):
+        return getattr(self, "search_params", self.request.GET)
+    
     def get_template_names(self):
         is_htmx = self.request.headers.get("HX-Request") == "true"
         is_history_restore = self.request.headers.get("HX-History-Restore-Request") == "true"
@@ -79,17 +83,26 @@ class UserSearchView(AdminRequiredMixin, ListView):
 
         return [self.template_name]
 
+    def get_selected_badges(self):
+        params = self.get_search_params()
+        valid_badges = Badge.get_valid_badges()
+        return [badge for badge in params.getlist("badge") if badge in valid_badges]
+
+
     def get_queryset(self):
         queryset = User.objects.filter(role=Role.REGULAR_USER)
-        selected_badges = self.request.GET.getlist("badge")
+
+        selected_badges = self.get_selected_badges()
 
         if selected_badges:
             queryset = queryset.filter(badge__in=selected_badges)
 
-        query = self.request.GET.get("q", "").strip()
+        query = self.get_search_params().get("q", "").strip()
+
         if query:
             queryset = queryset.filter(
-                Q(username__icontains=query) | Q(email__icontains=query)
+                Q(username__icontains=query) |
+                Q(email__icontains=query)
             ).annotate(
                 text_score=Case(
                     When(username__iexact=query, then=Value(100)),
@@ -103,15 +116,84 @@ class UserSearchView(AdminRequiredMixin, ListView):
             )
 
             return queryset.order_by("-text_score", "-date_joined", "-pk")
+
         return queryset.order_by("-date_joined", "-pk")
+
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        query_params = self.request.GET.copy()
+        query_params = self.get_search_params().copy()
         query_params.pop("page", None)
 
         context["querystring"] = query_params.urlencode()
-        context["selected_badges"] = self.request.GET.getlist("badge")
+        context["query"] = self.get_search_params().get("q", "").strip()
+        context["selected_badges"] = self.get_selected_badges()
+        context["badge_assignment_choices"] = Badge.choices
 
         return context
+    
+class UserBadgeAssignView(AdminRequiredMixin, View):
+    """Allow administrators to assign or remove a badge from a user."""
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        account = get_object_or_404(User, pk=pk, role=Role.REGULAR_USER)
+        form = UserBadgeAssignmentForm(request.POST)
+        is_htmx = request.headers.get("HX-Request") == "true"
+
+        if form.is_valid():
+            account.badge = form.cleaned_data["badge"]
+            account.save(update_fields=["badge"])
+
+            logger.info("User badge updated: username=%s badge=%s by=%s", account.username, account.badge, request.user.username)
+
+            success_message = f"Badge for user '{account.username}' has been updated."
+
+            if is_htmx:
+                return self.render_search_content(badge_update_message=success_message)
+
+            messages.success(request, success_message)
+        else:
+            logger.warning("Invalid badge assignment: username=%s by=%s", account.username, request.user.username)
+
+            if is_htmx:
+                return self.render_search_content(badge_update_error="Invalid badge selection.")
+
+            messages.error(request, "Invalid badge selection.")
+
+        return redirect(self.get_success_url())
+
+    def get_search_params(self):
+        params = QueryDict("", mutable=True)
+        query = self.request.POST.get("q", "").strip()
+
+        if query:
+            params["q"] = query
+
+        valid_badges = Badge.get_valid_badges()
+
+        for badge in self.request.POST.getlist("filter_badge"):
+            if badge in valid_badges:
+                params.appendlist("badge", badge)
+
+        return params
+
+    def render_search_content(self, **extra_context):
+        search_view = UserSearchView()
+        search_view.setup(self.request)
+
+        search_view.search_params = self.get_search_params()
+        queryset = search_view.get_queryset()
+        context = search_view.get_context_data(object_list=queryset)
+
+        context.update(extra_context)
+
+        return render(self.request, "accounts/partials/user_search_content.html", context)
+
+    def get_success_url(self):
+        params = self.get_search_params()
+        url = reverse("accounts:list")
+
+        return f"{url}?{params.urlencode()}" if params else url

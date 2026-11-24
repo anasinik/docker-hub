@@ -1,0 +1,52 @@
+<article class="repo-card user-card">
+
+    <div class="repo-card-body">
+
+        {% include "accounts/partials/user_card_content.html" with account=account only %}
+
+        <form
+            method="post"
+            action="{% url 'accounts:assign_badge' account.pk %}"
+            hx-post="{% url 'accounts:assign_badge' account.pk %}"
+            hx-target="#search-content"
+            hx-swap="outerHTML"
+            class="user-badge-form"
+        >
+            {% csrf_token %}
+
+            <div class="user-badge-field">
+                <label for="badge-{{ account.pk }}">
+                    Publisher badge
+                </label>
+
+                <select id="badge-{{ account.pk }}" name="badge">
+                    {% for value, label in badge_assignment_choices %}
+                        <option
+                            value="{{ value }}"
+                            {% if account.badge == value %}selected{% endif %}
+                        >
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <input type="hidden" name="q" value="{{ query }}">
+
+            {% for selected_badge in selected_badges %}
+                <input
+                    type="hidden"
+                    name="filter_badge"
+                    value="{{ selected_badge }}"
+                >
+            {% endfor %}
+
+            <button type="submit" class="button-primary">
+                Update badge
+            </button>
+
+        </form>
+
+    </div>
+
+</article>

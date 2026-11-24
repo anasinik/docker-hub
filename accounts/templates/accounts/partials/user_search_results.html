@@ -5,7 +5,7 @@
     </p>
 
     {% if users %}
-        {% include "accounts/partials/user_list.html" with users=users only %}
+         {% include "accounts/partials/admin_user_list.html" %}
     {% else %}
         <p class="search-empty">
             No users match your search criteria.

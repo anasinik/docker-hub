@@ -1,0 +1,9 @@
+<div class="repository-list">
+    {% for account in users %}
+        {% include "accounts/partials/admin_user_card.html" with account=account %}
+    {% empty %}
+        <div class="empty-state">
+            <h3>No users found</h3>
+        </div>
+    {% endfor %}
+</div>
