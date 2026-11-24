@@ -103,6 +103,16 @@ REGISTRY_CLIENT_CLASS = os.environ.get(
 REGISTRY_URL = os.environ.get("REGISTRY_URL", "http://localhost:5000")
 REGISTRY_TIMEOUT = float(os.environ.get("REGISTRY_TIMEOUT", "5"))
 
+# Token authentication (/registry/token/). Service and issuer must match
+# auth.token in docker/registry/config.yml; the registry verifies tokens with
+# the certificate created next to the key by "manage.py generate_registry_keys".
+REGISTRY_TOKEN_SERVICE = os.environ.get("REGISTRY_TOKEN_SERVICE", "dockerhub-registry")
+REGISTRY_TOKEN_ISSUER = os.environ.get("REGISTRY_TOKEN_ISSUER", "dockerhub-token-issuer")
+REGISTRY_TOKEN_PRIVATE_KEY_PATH = Path(
+    os.environ.get("REGISTRY_TOKEN_PRIVATE_KEY_PATH") or BASE_DIR / "docker" / "registry" / "auth" / "token.key"
+)
+REGISTRY_TOKEN_TTL = int(os.environ.get("REGISTRY_TOKEN_TTL", "300"))
+
 # Database and cache
 # UKS_TEST_DB=ON  -> SQLite + local memory cache (tests, CI, local development)
 # UKS_TEST_DB=OFF -> PostgreSQL + Redis (docker compose / production)
