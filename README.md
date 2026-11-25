@@ -43,6 +43,8 @@ The app is then available at http://127.0.0.1:8000/:
 | Sign up | http://127.0.0.1:8000/accounts/register/ |
 | Sign in | http://127.0.0.1:8000/accounts/login/ |
 | Change password | http://127.0.0.1:8000/accounts/password/ |
+| Administrators (super admin) | http://127.0.0.1:8000/accounts/admins/ |
+| Register administrator (super admin) | http://127.0.0.1:8000/accounts/admins/new/ |
 | My repositories (regular users) | http://127.0.0.1:8000/repositories/ |
 | Create repository (regular users) | http://127.0.0.1:8000/repositories/new/ |
 | Repository settings (owner) | http://127.0.0.1:8000/repositories/&lt;id&gt;/settings/ |
@@ -81,7 +83,7 @@ set a new password with `python manage.py changepassword superadmin`.
 | Role | How the account is created | Notes |
 | --- | --- | --- |
 | Super admin | `setup_super_admin` (first start) | Only one can exist; must change the generated password |
-| Admin | Added by the super admin | Can use the Django admin |
+| Admin | Registered by the super admin at `/accounts/admins/new/` | Can use the Django admin; must change the initial password |
 | Regular user | Signs up at `/accounts/register/` | Default role |
 
 Usernames are 4-30 lowercase letters and digits, because they are also the
@@ -94,6 +96,21 @@ not matter). After signing in, users return to the page they came from, or to
 the home page. Pages that need a login send visitors there. "Sign out" in the
 header ends the session; logout only accepts POST, so other sites cannot sign
 users out with a link. Successful logins, failed logins and logouts are logged.
+
+### Registering administrators
+
+Only the super admin registers administrators: "Administrators" in the header
+opens `/accounts/admins/`, the list of admins (newest first, 12 per page), and
+"Register administrator" opens the form at `/accounts/admins/new/`. Other users
+get 403.
+
+The form asks for a username, an email and an initial password, with the same
+rules as sign-up, except that reserved usernames are allowed. The new account
+always gets the Admin role. The super admin gives the initial password to the
+new admin, who must change it at the first sign-in, the same way as the super
+admin after setup: until then every page redirects to `/accounts/password/` and
+`docker login` is refused. The list shows "Initial password not changed" for
+those admins. Registrations are logged as `Admin registered` (without the password).
 
 ## Repositories
 

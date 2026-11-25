@@ -11,9 +11,9 @@ from django.shortcuts import redirect, get_object_or_404, render
 from django.urls import reverse, reverse_lazy
 from django.views.generic import FormView, ListView, View
 
-from accounts.permissions import AdminRequiredMixin
+from accounts.permissions import AdminRequiredMixin, SuperAdminRequiredMixin
 
-from .forms import AccountPasswordChangeForm, LoginForm, SignUpForm, UserBadgeAssignmentForm
+from .forms import AccountPasswordChangeForm, AdminRegistrationForm, LoginForm, SignUpForm, UserBadgeAssignmentForm
 from .models import Badge, Role, User
 
 logger = logging.getLogger(__name__)
@@ -82,6 +82,45 @@ class AccountPasswordChangeView(PasswordChangeView):
         logger.info("Password changed: username=%s id=%s required=%s", user.username, user.pk, was_required)
         messages.success(self.request, "Your password has been changed.")
         return response
+
+
+@method_decorator(vary_on_headers("HX-Request", "HX-History-Restore-Request"), name="dispatch")
+class AdminListView(SuperAdminRequiredMixin, ListView):
+    """The super admin sees the administrators, newest first."""
+
+    template_name = "accounts/admin_list.html"
+    context_object_name = "admins"
+    paginate_by = 12
+
+    def get_queryset(self):
+        return User.objects.filter(role=Role.ADMIN).order_by("-date_joined", "-pk")
+
+    def get_template_names(self):
+        is_htmx = self.request.headers.get("HX-Request") == "true"
+        is_history_restore = self.request.headers.get("HX-History-Restore-Request") == "true"
+        if is_htmx and not is_history_restore:
+            return ["accounts/partials/admin_list_content.html"]
+        return [self.template_name]
+
+
+class AdminCreateView(SuperAdminRequiredMixin, FormView):
+    """Only the super admin registers administrators; admins cannot sign up."""
+
+    template_name = "accounts/admin_form.html"
+    form_class = AdminRegistrationForm
+    success_url = reverse_lazy("accounts:admin_list")
+
+    def form_valid(self, form):
+        admin = form.save()
+        logger.info(
+            "Admin registered: username=%s id=%s by=%s", admin.username, admin.pk, self.request.user.username
+        )
+        messages.success(
+            self.request,
+            f"Administrator {admin.username} has been registered. "
+            "They must change the initial password at the first sign-in.",
+        )
+        return super().form_valid(form)
 
 
 @method_decorator(vary_on_headers("HX-Request", "HX-History-Restore-Request"), name="dispatch")

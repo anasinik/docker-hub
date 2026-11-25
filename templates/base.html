@@ -56,6 +56,11 @@
                     </a>
 
                 {% endif %}
+                {% if user.is_super_admin %}
+                    <a href="{% url 'accounts:admin_list' %}" class="nav-button">
+                        Administrators
+                    </a>
+                {% endif %}
                 <span>{{ user.username }}</span>
 
                 <form action="{% url 'accounts:logout' %}" method="post" class="nav-logout">

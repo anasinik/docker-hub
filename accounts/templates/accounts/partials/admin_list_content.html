@@ -1,0 +1,38 @@
+<section id="admin-list-content" aria-labelledby="admins-title">
+    <div class="section-header">
+        <div>
+            <h1 id="admins-title">Administrators</h1>
+            <p>Administrators manage official repositories and users.</p>
+        </div>
+
+        <a href="{% url 'accounts:admin_create' %}" class="button-primary button-inline">
+            Register administrator
+        </a>
+    </div>
+
+    <div class="repository-list">
+        {% for account in admins %}
+            <article class="repo-card user-card">
+                <div class="repo-card-body">
+                    <div class="repo-card-header">
+                        <h3 class="repo-card-name">{{ account.username }}</h3>
+
+                        {% if account.password_change_required %}
+                            <span class="account-status-pending">Initial password not changed</span>
+                        {% endif %}
+                    </div>
+
+                    <p class="repo-card-description user-card-email">{{ account.email }}</p>
+
+                    <div class="user-card-meta">
+                        <span class="user-joined">Registered {{ account.date_joined|date:"M j, Y" }}</span>
+                    </div>
+                </div>
+            </article>
+        {% empty %}
+            <p class="search-empty">No administrators yet.</p>
+        {% endfor %}
+    </div>
+
+    {% include "partials/pagination.html" with content_id="#admin-list-content" pagination_label="Administrator pages" %}
+</section>
