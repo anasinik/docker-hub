@@ -285,6 +285,31 @@ class RegistryTokenViewTests(TestCase):
 
         self.assertEqual(response.status_code, 401)
 
+    def test_user_who_must_change_password_gets_no_token(self):
+        # The super admin after "setup_super_admin" (#34)
+        User.objects.filter(pk=self.admin.pk).update(password_change_required=True)
+
+        for method in ("GET", "POST"):
+            with self.subTest(method=method), self.assertLogs("repositories.views", level="WARNING") as logs:
+                if method == "GET":
+                    response = self.get_token(["repository:nginx:pull,push"], user="admin1")
+                else:
+                    response = self.post_token("repository:nginx:pull,push", username="admin1")
+
+                self.assertEqual(response.status_code, 401)
+                self.assertEqual(response.json()["error"], "invalid_grant")
+                self.assertNotIn("token", response.json())
+                self.assertIn("password change required: username=admin1", logs.output[0])
+
+    def test_token_is_issued_once_password_is_changed(self):
+        User.objects.filter(pk=self.admin.pk).update(password_change_required=True)
+        self.assertEqual(self.get_token(user="admin1").status_code, 401)
+
+        User.objects.filter(pk=self.admin.pk).update(password_change_required=False)
+
+        access = self.access(self.get_token(["repository:nginx:pull,push"], user="admin1"))
+        self.assertEqual(access, [{"type": "repository", "name": "nginx", "actions": ["pull", "push"]}])
+
     def test_malformed_authorization_header_returns_401(self):
         for header in ("Basic not-base64!", "Bearer abc", f"Basic {base64.b64encode(b'no-colon').decode()}"):
             with self.subTest(header=header):

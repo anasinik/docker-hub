@@ -69,6 +69,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.middleware.PasswordChangeRequiredMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -171,6 +172,14 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+
+# Super admin created by "manage.py setup_super_admin". The generated password
+# is written to SUPER_ADMIN_PASSWORD_FILE and must be changed at first sign-in.
+SUPER_ADMIN_USERNAME = os.environ.get("SUPER_ADMIN_USERNAME", "superadmin")
+SUPER_ADMIN_EMAIL = os.environ.get("SUPER_ADMIN_EMAIL", "superadmin@example.com")
+SUPER_ADMIN_PASSWORD_FILE = Path(
+    os.environ.get("SUPER_ADMIN_PASSWORD_FILE") or BASE_DIR / "secrets" / "superadmin_password.txt"
+)
 
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "core:home"

@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm, BaseUserCreationForm, UsernameField
+from django.contrib.auth.forms import AuthenticationForm, BaseUserCreationForm, PasswordChangeForm, UsernameField
 from django.core.exceptions import ValidationError
 
 from .identifiers import normalize_login_identifier
@@ -69,6 +69,25 @@ class SignUpForm(BaseUserCreationForm):
         if User.objects.filter(email__iexact=email).exists():
             raise ValidationError("A user with this email already exists.", code="unique")
         return email
+
+class AccountPasswordChangeForm(PasswordChangeForm):
+    """Change the password with the current one; the new one must be different.
+
+    Saving clears ``password_change_required``, which gives the super admin
+    access after the first sign-in with the generated password.
+    """
+
+    def clean(self):
+        cleaned_data = super().clean()
+        new_password = cleaned_data.get("new_password1")
+        if new_password and self.user.check_password(new_password):
+            self.add_error("new_password1", "The new password must be different from the current one.")
+        return cleaned_data
+
+    def save(self, commit=True):
+        self.user.password_change_required = False
+        return super().save(commit=commit)
+
 
 class UserBadgeAssignmentForm(forms.Form):
     badge = forms.ChoiceField(choices=Badge.choices, required=False, label="Publisher badge")

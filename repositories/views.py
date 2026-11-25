@@ -308,7 +308,8 @@ class RegistryTokenView(View):
     Credentials are checked with ``authenticate()`` after
     ``normalize_login_identifier()``, so ``docker login`` accepts the same
     usernames and emails as the login page. Failed attempts are logged by the
-    ``user_login_failed`` signal in accounts.
+    ``user_login_failed`` signal in accounts. Users who still have to change
+    their initial password (``password_change_required``) get no token.
     """
 
     http_method_names = ["get", "post"]
@@ -321,10 +322,9 @@ class RegistryTokenView(View):
 
         user = None
         if credentials is not None:
-            username = normalize_login_identifier(credentials[0])
-            user = authenticate(request, username=username, password=credentials[1])
-            if user is None:
-                return token_error(401, "invalid_grant", "Incorrect username or password.")
+            user, error = self.authenticate_user(request, credentials[0], credentials[1])
+            if error is not None:
+                return error
 
         return self.token_response(request, user, request.GET.get("service"), request.GET.getlist("scope"))
 
@@ -332,16 +332,32 @@ class RegistryTokenView(View):
         if request.POST.get("grant_type") != "password":
             return token_error(400, "unsupported_grant_type", "Only the password grant is supported.")
 
-        username = normalize_login_identifier(request.POST.get("username", ""))
+        username = request.POST.get("username", "").strip()
         password = request.POST.get("password", "")
         if not username or not password:
             return token_error(400, "invalid_request", "Username and password are required.")
 
-        user = authenticate(request, username=username, password=password)
-        if user is None:
-            return token_error(401, "invalid_grant", "Incorrect username or password.")
+        user, error = self.authenticate_user(request, username, password)
+        if error is not None:
+            return error
 
         return self.token_response(request, user, request.POST.get("service"), request.POST.getlist("scope"))
+
+    def authenticate_user(self, request, identifier, password):
+        """Return ``(user, None)``, or ``(None, error response)`` if the user may not get a token."""
+        username = normalize_login_identifier(identifier)
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            return None, token_error(401, "invalid_grant", "Incorrect username or password.")
+
+        if user.password_change_required:
+            # The super admin's generated password works only for changing it
+            # (issue #34); the web pages enforce this with a middleware.
+            logger.warning("Registry login refused, password change required: username=%s", user.username)
+            return None, token_error(
+                401, "invalid_grant", "Change the initial password on the website before using the registry."
+            )
+        return user, None
 
     def token_response(self, request, user, service, scope_values):
         if service and service != settings.REGISTRY_TOKEN_SERVICE:
