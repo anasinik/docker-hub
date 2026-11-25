@@ -1,5 +1,7 @@
 import base64
 import binascii
+import hmac
+import json
 import logging
 
 from django.conf import settings
@@ -18,7 +20,9 @@ from accounts.identifiers import normalize_login_identifier
 from accounts.permissions import RegularUserRequiredMixin
 from repositories.services.registry import auth as registry_auth
 from repositories.services.registry.base import RegistryError
+from repositories.services.registry.events import repositories_to_sync
 from repositories.services.registry.factory import get_registry_client
+from repositories.services.registry.sync import SyncNotConfiguredError, get_sync_client, sync_repository
 
 from .forms import RepositoryDeleteForm, RepositoryForm, RepositorySettingsForm
 from .models import Repository, Visibility
@@ -89,8 +93,9 @@ class RepositorySettingsView(RegularUserRequiredMixin, UpdateView):
 class RepositoryDeleteView(RegularUserRequiredMixin, DeleteView):
     """The owner deletes a repository after typing its name to confirm.
 
-    Stars are deleted with it (cascade). Images in the registry will be removed
-    once the real registry exists (issues #24 and #26).
+    Its images are deleted from the registry first; stars and tags are deleted
+    with it (cascade). If the registry cannot be reached the repository is kept,
+    so its images never stay behind for a new repository with the same name.
     Other users get 404, so a private repository does not reveal that it exists.
     """
 
@@ -111,12 +116,30 @@ class RepositoryDeleteView(RegularUserRequiredMixin, DeleteView):
         path = self.object.registry_path
         repository_id = self.object.pk
 
+        try:
+            deleted_manifests = get_registry_client().delete_repository(path)
+        except RegistryError as error:
+            logger.warning(
+                "Registry unavailable, repository not deleted: path=%s id=%s error=%s",
+                path,
+                repository_id,
+                error,
+                extra={"repo_id": repository_id},
+            )
+            messages.error(
+                self.request,
+                "The container registry is not available, so the images could not be deleted. "
+                "The repository was kept; please try again later.",
+            )
+            return self.render_to_response(self.get_context_data(form=form), status=503)
+
         response = super().form_valid(form)
 
         logger.info(
-            "Repository deleted: path=%s id=%s",
+            "Repository deleted: path=%s id=%s manifests=%s",
             path,
             repository_id,
+            deleted_manifests,
             extra={"repo_id": repository_id},
         )
         messages.success(self.request, f"Repository {path} has been deleted.")
@@ -243,19 +266,9 @@ class RepositoryDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        try:
-            context["tags"] = get_registry_client().list_tags(self.object)
-            context["registry_unavailable"] = False
-        except RegistryError as error:
-            logger.warning(
-                "Registry unavailable, cannot list tags: path=%s id=%s error=%s",
-                self.object.registry_path,
-                self.object.pk,
-                error,
-                extra={"repo_id": self.object.pk},
-            )
-            context["tags"] = []
-            context["registry_unavailable"] = True
+        # Tags are synced from the registry on push (RegistryEventsView), so
+        # the page does not call the registry.
+        context["tags"] = self.object.tags.all()
 
         user = self.request.user
         context["is_starred"] = (
@@ -390,3 +403,59 @@ class RegistryTokenView(View):
             ";".join(f"{item['name']}:{','.join(item['actions'])}" for item in access) or "-",
         )
         return JsonResponse(body)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class RegistryEventsView(View):
+    """Webhook for registry notifications: syncs the tags of pushed repositories.
+
+    The registry sends ``Authorization: Bearer <REGISTRY_EVENTS_TOKEN>``. Valid
+    requests always get 200, also when a sync fails (it is logged): the registry
+    would otherwise retry the same events forever. Repeating a request is
+    harmless because each sync reads the registry again.
+    """
+
+    http_method_names = ["post"]
+
+    def post(self, request):
+        expected = settings.REGISTRY_EVENTS_TOKEN
+        if not expected:
+            logger.error("Registry events received, but REGISTRY_EVENTS_TOKEN is not set")
+            return JsonResponse({"error": "Registry events are not configured."}, status=503)
+
+        scheme, _, token = request.headers.get("Authorization", "").partition(" ")
+        if scheme.lower() != "bearer" or not hmac.compare_digest(token.encode(), expected.encode()):
+            logger.warning("Registry events rejected, invalid token")
+            return JsonResponse({"error": "Invalid token."}, status=401)
+
+        try:
+            paths = repositories_to_sync(json.loads(request.body))
+        except (ValueError, UnicodeDecodeError) as error:
+            logger.warning("Registry events rejected, malformed body: error=%s", error)
+            return JsonResponse({"error": "Malformed notification."}, status=400)
+
+        try:
+            client = get_sync_client()
+        except SyncNotConfiguredError as error:
+            # 503 so the registry keeps the events and delivers them once fixed
+            logger.warning("Registry events not synced: %s", error)
+            return JsonResponse({"error": str(error)}, status=503)
+
+        for path, pushed_at in paths.items():
+            repository = registry_auth.find_repository(path)
+            if repository is None:
+                # Pushing to unknown paths is denied (RegistryTokenView), so this
+                # is a delete event that arrives after the repository was deleted.
+                logger.info("Registry event for unknown repository: path=%r", path)
+                continue
+            try:
+                sync_repository(repository, pushed_at=pushed_at, client=client)
+            except RegistryError as error:
+                logger.warning(
+                    "Registry unavailable, tags not synced: path=%s id=%s error=%s",
+                    path,
+                    repository.pk,
+                    error,
+                    extra={"repo_id": repository.pk},
+                )
+        return JsonResponse({"synced": len(paths)})

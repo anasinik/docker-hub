@@ -49,6 +49,11 @@ auth:
     # Created by "python manage.py generate_registry_keys"
     rootcertbundle: /etc/docker/registry/auth/token.crt
 
+# Notifications: after a push or delete the registry calls the Django app
+# (repositories.views.RegistryEventsView), which syncs the repository's tags.
+# The endpoint list is set in docker-compose.yml (REGISTRY_NOTIFICATIONS_ENDPOINTS),
+# because its URL and secret come from .env.
+
 health:
   storagedriver:
     enabled: true

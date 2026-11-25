@@ -124,13 +124,7 @@
             </span>
         </div>
 
-        {% if registry_unavailable %}
-            <div class="detail-message error">
-                Unable to retrieve tags from the container registry.
-                Please try again later.
-            </div>
-
-        {% elif tags %}
+        {% if tags %}
             <div class="tags-table-wrapper">
                 <table class="tags-table">
                     <thead>

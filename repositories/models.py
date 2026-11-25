@@ -100,3 +100,40 @@ class RepositoryStar(models.Model):
 
     def __str__(self):
         return f"{self.user} starred {self.repository}"
+
+
+class Tag(models.Model):
+    """An image tag in the registry, kept in sync by ``services.registry.sync``.
+
+    Tags are only created by ``docker push``; the registry stays the source of
+    truth and this table mirrors it so pages can sort and filter tags.
+    """
+
+    repository = models.ForeignKey(
+        Repository,
+        on_delete=models.CASCADE,
+        related_name="tags",
+    )
+    # Docker allows up to 128 characters: [A-Za-z0-9_][A-Za-z0-9._-]{0,127}
+    name = models.CharField(max_length=128)
+    # "sha256:<64 hex>"; long enough for sha512 as well
+    digest = models.CharField(max_length=150)
+    media_type = models.CharField(max_length=255, blank=True)
+    # Compressed size in bytes (config and layers, all platforms of a
+    # multi-arch image), like the size Docker Hub shows.
+    size = models.BigIntegerField(null=True, blank=True)
+    # The registry does not store push times; this is the time of the push
+    # event, or of the first sync that saw this digest.
+    pushed_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["repository", "name"],
+                name="unique_tag_per_repository",
+            ),
+        ]
+        ordering = ["-pushed_at", "name"]
+
+    def __str__(self):
+        return f"{self.repository.registry_path}:{self.name}"
