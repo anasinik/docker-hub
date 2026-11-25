@@ -3,7 +3,7 @@ from django.contrib.auth.forms import AuthenticationForm, BaseUserCreationForm, 
 from django.core.exceptions import ValidationError
 
 from .identifiers import normalize_login_identifier
-from .models import Badge, User
+from .models import Badge, Role, User
 from .validators import validate_not_reserved_username
 
 EMAIL_MAX_LENGTH = 254
@@ -52,6 +52,10 @@ class SignUpForm(BaseUserCreationForm):
         model = User
         fields = ("username", "email")
 
+    # Reserved names (see RESERVED_USERNAMES) are refused here; admins
+    # registered by the super admin may use them.
+    allow_reserved_usernames = False
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["email"].widget.attrs["autocomplete"] = "email"
@@ -59,7 +63,8 @@ class SignUpForm(BaseUserCreationForm):
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip().lower()
-        validate_not_reserved_username(username)
+        if not self.allow_reserved_usernames:
+            validate_not_reserved_username(username)
         if User.objects.filter(username__iexact=username).exists():
             raise ValidationError("A user with that username already exists.", code="unique")
         return username
@@ -70,11 +75,40 @@ class SignUpForm(BaseUserCreationForm):
             raise ValidationError("A user with this email already exists.", code="unique")
         return email
 
+
+class AdminRegistrationForm(SignUpForm):
+    """The super admin registers an administrator with an initial password.
+
+    Same username, email and password rules as sign-up, except that reserved
+    usernames are allowed. The role is always ADMIN (a ``role`` in the request
+    is ignored), and the admin must change the initial password at the first
+    sign-in, because the super admin knows it.
+    """
+
+    allow_reserved_usernames = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # The super admin types a password for someone else.
+        for name in ("password1", "password2"):
+            self.fields[name].widget.attrs["autocomplete"] = "new-password"
+        self.fields["password1"].label = "Initial password"
+        self.fields["password2"].label = "Initial password confirmation"
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.role = Role.ADMIN
+        user.password_change_required = True
+        if commit:
+            user.save()
+        return user
+
 class AccountPasswordChangeForm(PasswordChangeForm):
     """Change the password with the current one; the new one must be different.
 
     Saving clears ``password_change_required``, which gives the super admin
-    access after the first sign-in with the generated password.
+    (generated password) and new admins (password set by the super admin)
+    access after the first sign-in.
     """
 
     def clean(self):

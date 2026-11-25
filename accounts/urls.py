@@ -10,5 +10,7 @@ urlpatterns = [
     path("login/", views.SignInView.as_view(), name="login"),
     path("logout/", views.SignOutView.as_view(), name="logout"),
     path("password/", views.AccountPasswordChangeView.as_view(), name="password_change"),
+    path("admins/", views.AdminListView.as_view(), name="admin_list"),
+    path("admins/new/", views.AdminCreateView.as_view(), name="admin_create"),
     path("<int:pk>/badge/", views.UserBadgeAssignView.as_view(), name="assign_badge"),
 ]
