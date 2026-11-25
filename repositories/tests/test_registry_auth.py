@@ -254,6 +254,30 @@ class RegistryTokenViewTests(TestCase):
         self.assertEqual(response.json()["error"], "invalid_grant")
         self.assertIn("Login failed: username='alice'", logs.output[0])
 
+    def test_login_accepts_same_identifiers_as_login_page(self):
+        for identifier in ("Alice", "alice@example.com", "ALICE@Example.COM"):
+            with self.subTest(method="GET", identifier=identifier):
+                response = self.get_token(["repository:alice/secret:pull"], user=identifier)
+
+                self.assertEqual(response.status_code, 200)
+                claims = decode(response.json()["token"])
+                self.assertEqual(claims["sub"], "alice")
+                self.assertEqual(claims["access"][0]["name"], "alice/secret")
+
+            with self.subTest(method="POST", identifier=identifier):
+                response = self.post_token("repository:alice/secret:pull", username=identifier)
+
+                self.assertEqual(response.status_code, 200)
+                claims = decode(response.json()["token"])
+                self.assertEqual(claims["sub"], "alice")
+                self.assertEqual(claims["access"][0]["name"], "alice/secret")
+
+    def test_unknown_email_returns_401(self):
+        with self.subTest(method="GET"):
+            self.assertEqual(self.get_token(user="nobody@example.com").status_code, 401)
+        with self.subTest(method="POST"):
+            self.assertEqual(self.post_token(username="nobody@example.com").status_code, 401)
+
     def test_inactive_user_cannot_log_in(self):
         User.objects.filter(pk=self.bob.pk).update(is_active=False)
 

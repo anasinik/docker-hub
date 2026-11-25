@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.vary import vary_on_headers
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
+from accounts.identifiers import normalize_login_identifier
 from accounts.permissions import RegularUserRequiredMixin
 from repositories.services.registry import auth as registry_auth
 from repositories.services.registry.base import RegistryError
@@ -304,8 +305,10 @@ class RegistryTokenView(View):
     * POST: OAuth2 password grant used by containerd for push and pull, with
       space-separated scopes.
 
-    Credentials are checked with ``authenticate()``; failed attempts are
-    logged by the ``user_login_failed`` signal in accounts.
+    Credentials are checked with ``authenticate()`` after
+    ``normalize_login_identifier()``, so ``docker login`` accepts the same
+    usernames and emails as the login page. Failed attempts are logged by the
+    ``user_login_failed`` signal in accounts.
     """
 
     http_method_names = ["get", "post"]
@@ -318,7 +321,8 @@ class RegistryTokenView(View):
 
         user = None
         if credentials is not None:
-            user = authenticate(request, username=credentials[0], password=credentials[1])
+            username = normalize_login_identifier(credentials[0])
+            user = authenticate(request, username=username, password=credentials[1])
             if user is None:
                 return token_error(401, "invalid_grant", "Incorrect username or password.")
 
@@ -328,7 +332,7 @@ class RegistryTokenView(View):
         if request.POST.get("grant_type") != "password":
             return token_error(400, "unsupported_grant_type", "Only the password grant is supported.")
 
-        username = request.POST.get("username", "")
+        username = normalize_login_identifier(request.POST.get("username", ""))
         password = request.POST.get("password", "")
         if not username or not password:
             return token_error(400, "invalid_request", "Username and password are required.")
