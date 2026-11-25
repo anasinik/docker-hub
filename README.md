@@ -123,6 +123,11 @@ for the full list.
 | `REGISTRY_URL` | `http://localhost:5000` | Registry address (`http://registry:5000` inside compose) |
 | `REGISTRY_TIMEOUT` | `5` | Seconds to wait for the registry |
 | `REGISTRY_CLIENT_CLASS` | `...mock.MockRegistryClient` | Registry client; `repositories.services.registry.http.HttpRegistryClient` uses the real registry |
+| `REGISTRY_TOKEN_REALM` | `http://host.docker.internal:8000/registry/token/` | Token endpoint address the Docker daemon calls (`docker compose`) |
+| `REGISTRY_TOKEN_SERVICE` | `dockerhub-registry` | Token audience; must match `auth.token.service` in `docker/registry/config.yml` |
+| `REGISTRY_TOKEN_ISSUER` | `dockerhub-token-issuer` | Token issuer; must match `auth.token.issuer` |
+| `REGISTRY_TOKEN_PRIVATE_KEY_PATH` | `docker/registry/auth/token.key` | Key that signs registry tokens |
+| `REGISTRY_TOKEN_TTL` | `300` | Token lifetime in seconds |
 
 ## Logging
 
@@ -265,6 +270,11 @@ Start the registry and Nginx:
 cp .env.example .env
 # Set ELASTIC_PASSWORD in .env (required by docker-compose.yml).
 
+# Key and certificate for registry tokens (see "Registry authentication").
+# Run it before "docker compose up"; the registry does not start without
+# docker/registry/auth/token.crt.
+python manage.py generate_registry_keys
+
 docker compose up -d registry nginx
 docker compose ps
 ```
@@ -284,13 +294,16 @@ curl -i https://registry.example.com/v2/
 ```
 
 On Windows, `--ssl-no-revoke` may be needed when using locally generated `mkcert` certificates.
-A successful unauthenticated request currently returns HTTP 200 and `{}`.
+An unauthenticated request returns HTTP 401 with a `WWW-Authenticate: Bearer realm=...` header.
 
 ### Push and pull images
 
 Docker clients must use the Nginx hostname rather than the internal registry service name.
+Create the repository in the application first and log in with your account:
 
 ```bash
+docker login registry.example.com
+
 docker pull alpine:3.20
 
 docker tag alpine:3.20 registry.example.com/<username>/alpine:1.0
@@ -300,21 +313,48 @@ docker push registry.example.com/<username>/alpine:1.0
 docker pull registry.example.com/<username>/alpine:1.0
 ```
 
-Inspect the registry contents:
-
-```bash
-curl https://registry.example.com/v2/_catalog
-
-curl https://registry.example.com/v2/<username>/alpine/tags/list
-```
-
 Remove the local image if needed:
 
 ```bash
 docker rmi registry.example.com/<username>/alpine:1.0
 ```
 
-The registry currently has no authentication. Anyone who can reach its public endpoint can push and pull images. Do not expose this development setup to untrusted networks. Authentication and authorization will be implemented separately.
+### Registry authentication
+
+The registry uses [token authentication](https://distribution.github.io/distribution/spec/auth/token/).
+When a Docker client needs access, the registry sends it to the token endpoint
+`/registry/token/` of the application (the "realm"). The application checks the
+username and password, decides which actions are allowed on each requested
+repository and returns a token signed with `docker/registry/auth/token.key`. The
+registry verifies the token with `docker/registry/auth/token.crt` and does not
+know anything about users.
+
+`python manage.py generate_registry_keys` creates both files (`--force` replaces
+them; restart the registry afterwards). The directory is in `.gitignore`.
+
+| Who | Public repository | Private repository | Official repository (`<name>`) |
+| --- | --- | --- | --- |
+| Not logged in | pull | none | pull (if public) |
+| Other user | pull | none | pull (if public) |
+| Owner | pull, push | pull, push | - |
+| Administrator | pull | none | pull, push |
+
+- Pushing to a repository that does not exist in the application is denied; create it on the platform first.
+- Users never get `delete` or `registry:catalog:*`. The application signs its own tokens for those calls (`issue_internal_token`).
+- A wrong password returns 401 and is logged as `Login failed` (same as the login page). Refused actions are logged as `Registry access denied`.
+- The endpoint accepts `GET` (`docker login`, anonymous pulls) and `POST` with the OAuth2 password grant (containerd, used by Docker Desktop for push and pull).
+
+The Docker daemon runs in the Docker Desktop VM, so the realm must be an address
+it can reach. With the app on the host (`runserver`), start it on all interfaces
+and allow the host name:
+
+```bash
+# .env: DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,host.docker.internal
+python manage.py runserver 0.0.0.0:8000
+```
+
+The default realm `http://host.docker.internal:8000/registry/token/` then works.
+Set `REGISTRY_TOKEN_REALM` in `.env` and restart the registry when the app runs elsewhere.
 
 Pushed images are not shown in the application yet, and the app uses `MockRegistryClient` by default, so `runserver`, tests and CI work without the container.
 

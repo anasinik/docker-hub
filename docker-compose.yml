@@ -38,6 +38,17 @@ services:
     volumes:
       - registry_data:/var/lib/registry
       - ./docker/registry/config.yml:/etc/docker/registry/config.yml:ro
+      # Only the certificate; the private key stays with the Django app.
+      # create_host_path: false makes compose fail if the file is missing,
+      # instead of creating an empty directory in its place.
+      - type: bind
+        source: ./docker/registry/auth/token.crt
+        target: /etc/docker/registry/auth/token.crt
+        read_only: true
+        bind:
+          create_host_path: false
+    environment:
+      REGISTRY_AUTH_TOKEN_REALM: ${REGISTRY_TOKEN_REALM:-http://host.docker.internal:8000/registry/token/}
     networks:
       - registry
     healthcheck:

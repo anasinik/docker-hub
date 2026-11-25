@@ -34,6 +34,21 @@ http:
   debug:
     addr: :5001
 
+# Token authentication: Docker clients get a token from the Django app
+# (repositories.views.RegistryTokenView), which checks the user and the
+# repository permissions. The registry only verifies the token signature.
+auth:
+  token:
+    # Address of the token endpoint as seen by the Docker daemon. Overridden by
+    # REGISTRY_TOKEN_REALM in .env (docker-compose.yml). The default works with
+    # "runserver 0.0.0.0:8000" on the host and Docker Desktop.
+    realm: http://host.docker.internal:8000/registry/token/
+    # Must match REGISTRY_TOKEN_SERVICE and REGISTRY_TOKEN_ISSUER in settings.py
+    service: dockerhub-registry
+    issuer: dockerhub-token-issuer
+    # Created by "python manage.py generate_registry_keys"
+    rootcertbundle: /etc/docker/registry/auth/token.crt
+
 health:
   storagedriver:
     enabled: true

@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, BaseUserCreationForm, UsernameField
 from django.core.exceptions import ValidationError
 
+from .identifiers import normalize_login_identifier
 from .models import Badge, User
 from .validators import validate_not_reserved_username
 
@@ -37,11 +38,7 @@ class LoginForm(AuthenticationForm):
         username_field.widget.attrs["maxlength"] = str(EMAIL_MAX_LENGTH)
 
     def clean_username(self):
-        identifier = self.cleaned_data["username"].strip()
-        if "@" in identifier:
-            user = User.objects.filter(email__iexact=identifier).only("username").first()
-            return user.username if user else identifier
-        return identifier.lower()
+        return normalize_login_identifier(self.cleaned_data["username"])
 
 
 class SignUpForm(BaseUserCreationForm):

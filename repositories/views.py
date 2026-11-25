@@ -1,13 +1,22 @@
+import base64
+import binascii
 import logging
 
+from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import authenticate
 from django.db.models import Q, Case, Count, IntegerField, Value, When
+from django.http import JsonResponse
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.vary import vary_on_headers
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
+from accounts.identifiers import normalize_login_identifier
 from accounts.permissions import RegularUserRequiredMixin
+from repositories.services.registry import auth as registry_auth
 from repositories.services.registry.base import RegistryError
 from repositories.services.registry.factory import get_registry_client
 
@@ -255,3 +264,113 @@ class RepositoryDetailView(DetailView):
         )
 
         return context
+
+
+def token_error(status, code, description):
+    """OAuth2 style error body for the registry token endpoint."""
+    response = JsonResponse({"error": code, "error_description": description}, status=status)
+    if status == 401:
+        response["WWW-Authenticate"] = 'Basic realm="registry"'
+    return response
+
+
+def basic_auth_credentials(request):
+    """Return ``(username, password)`` from a Basic Authorization header.
+
+    Returns None when there is no header (anonymous request) and raises
+    ValueError when the header is malformed.
+    """
+    header = request.headers.get("Authorization", "")
+    if not header:
+        return None
+    scheme, _, encoded = header.partition(" ")
+    if scheme.lower() != "basic":
+        raise ValueError("unsupported authorization scheme")
+    try:
+        decoded = base64.b64decode(encoded.strip(), validate=True).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError) as error:
+        raise ValueError("malformed basic credentials") from error
+    username, separator, password = decoded.partition(":")
+    if not separator:
+        raise ValueError("malformed basic credentials")
+    return username, password
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class RegistryTokenView(View):
+    """Token endpoint ("realm") of the container registry.
+
+    * GET: ``docker login`` and anonymous pulls, credentials in a Basic header
+      and one ``scope`` parameter per resource.
+    * POST: OAuth2 password grant used by containerd for push and pull, with
+      space-separated scopes.
+
+    Credentials are checked with ``authenticate()`` after
+    ``normalize_login_identifier()``, so ``docker login`` accepts the same
+    usernames and emails as the login page. Failed attempts are logged by the
+    ``user_login_failed`` signal in accounts.
+    """
+
+    http_method_names = ["get", "post"]
+
+    def get(self, request):
+        try:
+            credentials = basic_auth_credentials(request)
+        except ValueError:
+            return token_error(401, "invalid_client", "Malformed Authorization header.")
+
+        user = None
+        if credentials is not None:
+            username = normalize_login_identifier(credentials[0])
+            user = authenticate(request, username=username, password=credentials[1])
+            if user is None:
+                return token_error(401, "invalid_grant", "Incorrect username or password.")
+
+        return self.token_response(request, user, request.GET.get("service"), request.GET.getlist("scope"))
+
+    def post(self, request):
+        if request.POST.get("grant_type") != "password":
+            return token_error(400, "unsupported_grant_type", "Only the password grant is supported.")
+
+        username = normalize_login_identifier(request.POST.get("username", ""))
+        password = request.POST.get("password", "")
+        if not username or not password:
+            return token_error(400, "invalid_request", "Username and password are required.")
+
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            return token_error(401, "invalid_grant", "Incorrect username or password.")
+
+        return self.token_response(request, user, request.POST.get("service"), request.POST.getlist("scope"))
+
+    def token_response(self, request, user, service, scope_values):
+        if service and service != settings.REGISTRY_TOKEN_SERVICE:
+            return token_error(400, "invalid_request", "Unknown service.")
+
+        scopes = registry_auth.parse_scopes(scope_values)
+        access, denied = registry_auth.resolve_access(user, scopes)
+        username = user.username if user is not None else ""
+
+        for scope in denied:
+            logger.warning(
+                "Registry access denied: username=%r scope=%r",
+                username or "anonymous",
+                f"{scope.type}:{scope.name}:{','.join(scope.actions)}",
+            )
+
+        try:
+            body = registry_auth.issue_token(username, access)
+        except (OSError, ValueError) as error:
+            logger.error(
+                "Registry token key cannot be loaded: path=%s error=%s",
+                settings.REGISTRY_TOKEN_PRIVATE_KEY_PATH,
+                error,
+            )
+            return token_error(503, "temporarily_unavailable", "Registry authentication is not configured.")
+
+        logger.info(
+            "Registry token issued: username=%s access=%s",
+            username or "anonymous",
+            ";".join(f"{item['name']}:{','.join(item['actions'])}" for item in access) or "-",
+        )
+        return JsonResponse(body)
