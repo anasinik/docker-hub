@@ -6,14 +6,14 @@ from django.db.models import Q, Case, IntegerField, Value, When
 from django.http import QueryDict
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LoginView, LogoutView, PasswordChangeView
 from django.shortcuts import redirect, get_object_or_404, render
 from django.urls import reverse, reverse_lazy
 from django.views.generic import FormView, ListView, View
 
 from accounts.permissions import AdminRequiredMixin
 
-from .forms import LoginForm, SignUpForm, UserBadgeAssignmentForm
+from .forms import AccountPasswordChangeForm, LoginForm, SignUpForm, UserBadgeAssignmentForm
 from .models import Badge, Role, User
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,27 @@ class SignOutView(LogoutView):
         if was_authenticated:
             messages.info(request, "You have been signed out.")
         return response
+
+class AccountPasswordChangeView(PasswordChangeView):
+    """Change the password of the signed-in user.
+
+    Users with ``password_change_required`` (the super admin after setup) are
+    sent here by ``PasswordChangeRequiredMiddleware`` until they change it.
+    The session stays valid after the change.
+    """
+
+    template_name = "accounts/password_change.html"
+    form_class = AccountPasswordChangeForm
+    success_url = reverse_lazy("core:home")
+
+    def form_valid(self, form):
+        was_required = self.request.user.password_change_required
+        response = super().form_valid(form)
+        user = form.user
+        logger.info("Password changed: username=%s id=%s required=%s", user.username, user.pk, was_required)
+        messages.success(self.request, "Your password has been changed.")
+        return response
+
 
 @method_decorator(vary_on_headers("HX-Request", "HX-History-Restore-Request"), name="dispatch")
 class UserSearchView(AdminRequiredMixin, ListView):

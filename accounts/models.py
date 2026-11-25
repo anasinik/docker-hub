@@ -64,6 +64,9 @@ class User(AbstractUser):
     email = models.EmailField("email address")
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.REGULAR_USER)
     badge = models.CharField(max_length=20, choices=Badge.choices, default=Badge.NONE, blank=True)
+    # Set for the super admin created by "manage.py setup_super_admin": the
+    # generated password must be changed before the account can be used.
+    password_change_required = models.BooleanField(default=False)
 
     objects = UserManager()
 

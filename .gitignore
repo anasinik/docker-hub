@@ -12,6 +12,7 @@ venv/
 env/
 docker/nginx/certs/
 docker/registry/auth/
+secrets/
 
 # Django
 db.sqlite3

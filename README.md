@@ -31,7 +31,7 @@ python -m venv .venv
 pip install -r requirements.txt
 
 python manage.py migrate
-python manage.py createsuperuser
+python manage.py setup_super_admin
 python manage.py runserver
 ```
 
@@ -42,6 +42,7 @@ The app is then available at http://127.0.0.1:8000/:
 | Home | http://127.0.0.1:8000/ |
 | Sign up | http://127.0.0.1:8000/accounts/register/ |
 | Sign in | http://127.0.0.1:8000/accounts/login/ |
+| Change password | http://127.0.0.1:8000/accounts/password/ |
 | My repositories (regular users) | http://127.0.0.1:8000/repositories/ |
 | Create repository (regular users) | http://127.0.0.1:8000/repositories/new/ |
 | Repository settings (owner) | http://127.0.0.1:8000/repositories/&lt;id&gt;/settings/ |
@@ -49,13 +50,37 @@ The app is then available at http://127.0.0.1:8000/:
 | Django admin | http://127.0.0.1:8000/admin/ |
 | Health check | http://127.0.0.1:8000/health/ |
 
-`createsuperuser` creates the single super admin and asks for an email, which is required.
+## Setup (super admin)
+
+On the first start, `python manage.py setup_super_admin` (after `migrate`)
+creates the single super admin with a generated password:
+
+| | Default | Setting |
+| --- | --- | --- |
+| Username | `superadmin` | `SUPER_ADMIN_USERNAME` |
+| Email | `superadmin@example.com` | `SUPER_ADMIN_EMAIL` |
+| Password file | `secrets/superadmin_password.txt` (in the project directory) | `SUPER_ADMIN_PASSWORD_FILE` |
+
+The password file contains only the password. It is created readable only by
+its owner (on Linux/macOS), the `secrets/` directory is in `.gitignore`, and the
+password is never printed or logged.
+
+Sign in at `/accounts/login/` with the username and that password. Until the
+password is changed, every page (the Django admin included) redirects to
+`/accounts/password/`; only signing out works. `docker login` is refused as
+well. The new password must be different from the generated one. After the
+change, the super admin has access to everything and stays signed in. The file
+is not deleted, but its password no longer works.
+
+Running the command again does nothing once a super admin exists, so it is safe
+to run on every start. If the password file is lost before the first sign-in,
+set a new password with `python manage.py changepassword superadmin`.
 
 ## Users and roles
 
 | Role | How the account is created | Notes |
 | --- | --- | --- |
-| Super admin | `createsuperuser` | Only one can exist |
+| Super admin | `setup_super_admin` (first start) | Only one can exist; must change the generated password |
 | Admin | Added by the super admin | Can use the Django admin |
 | Regular user | Signs up at `/accounts/register/` | Default role |
 
@@ -112,6 +137,9 @@ for the full list.
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated host names |
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` | | PostgreSQL connection |
 | `REDIS_URL` | `redis://redis:6379/0` | Redis cache location |
+| `SUPER_ADMIN_USERNAME` | `superadmin` | Username of the super admin created by `setup_super_admin` |
+| `SUPER_ADMIN_EMAIL` | `superadmin@example.com` | Email of that super admin |
+| `SUPER_ADMIN_PASSWORD_FILE` | `<project>/secrets/superadmin_password.txt` | File the generated password is written to |
 | `DJANGO_LOG_LEVEL` | `INFO` | Lowest level that is logged |
 | `DJANGO_LOG_DIR` | `<project>/logs` | Directory of the log files |
 | `DJANGO_LOG_TO_FILE` | `True` | `False` logs to the console only |
@@ -342,6 +370,7 @@ them; restart the registry afterwards). The directory is in `.gitignore`.
 - Pushing to a repository that does not exist in the application is denied; create it on the platform first.
 - Users never get `delete` or `registry:catalog:*`. The application signs its own tokens for those calls (`issue_internal_token`).
 - A wrong password returns 401 and is logged as `Login failed` (same as the login page). Refused actions are logged as `Registry access denied`.
+- The super admin gets no token (401) until the generated password is changed on the website (see "Setup").
 - The endpoint accepts `GET` (`docker login`, anonymous pulls) and `POST` with the OAuth2 password grant (containerd, used by Docker Desktop for push and pull).
 
 The Docker daemon runs in the Docker Desktop VM, so the realm must be an address
