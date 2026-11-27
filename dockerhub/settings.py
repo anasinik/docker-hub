@@ -217,7 +217,12 @@ LOG_LEVEL = os.environ.get("DJANGO_LOG_LEVEL", "INFO").strip().upper()
 LOG_DIR = Path(os.environ.get("DJANGO_LOG_DIR") or BASE_DIR / "logs")
 LOG_TO_FILE = env_bool("DJANGO_LOG_TO_FILE", default=True) and not TESTING
 
-LOG_REQUESTS_SKIP_PREFIXES = ["/" + STATIC_URL.lstrip("/"), "/health/", "/favicon.ico"]
+# "manage.py ship_logs" sends this file to Elasticsearch, LOG_SHIP_BATCH_SIZE
+# entries per bulk request. Absolute, because the path is the key of LogShippingState.
+LOG_SHIP_FILE = Path(os.environ.get("LOG_SHIP_FILE") or LOG_DIR / "app.json.log").resolve()
+LOG_SHIP_BATCH_SIZE = int(os.environ.get("LOG_SHIP_BATCH_SIZE", "500"))
+
+LOG_REQUESTS_SKIP_PREFIXES =["/" + STATIC_URL.lstrip("/"), "/health/", "/favicon.ico"]
 
 LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 
@@ -261,5 +266,9 @@ LOGGING = {
         "django.request": {"handlers": [], "level": "ERROR", "propagate": True},
         # runserver's access log duplicates RequestLoggingMiddleware.
         "django.server": {"handlers": ["null"], "propagate": False},
+        # The Elasticsearch client logs every request at INFO. ship_logs would
+        # then write a line for each bulk request and ship it on the next run.
+        "elastic_transport": {"handlers": [], "level": "WARNING", "propagate": True},
+        "elasticsearch": {"handlers": [], "level": "WARNING", "propagate": True},
     },
 }

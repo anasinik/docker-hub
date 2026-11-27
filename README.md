@@ -10,7 +10,7 @@ dockerhub/      Django project (settings, root URLs, WSGI/ASGI)
 accounts/       Custom user model (AUTH_USER_MODEL = accounts.User)
 core/           Home page and health check endpoint
 repositories/   Image repositories (create, list own, edit settings, delete, ...)
-analytics/      Log analytics: Elasticsearch connection and log index
+analytics/      Log analytics: Elasticsearch connection, log index and log shipping
 templates/      Shared templates (base.html)
 static/         Shared static files
 docs/           Class diagram
@@ -161,6 +161,8 @@ for the full list.
 | `DJANGO_LOG_DIR` | `<project>/logs` | Directory of the log files |
 | `DJANGO_LOG_TO_FILE` | `True` | `False` logs to the console only |
 | `ELASTIC_PASSWORD` | | Password of the `elastic` user; required by `docker compose` |
+| `LOG_SHIP_FILE` | `<DJANGO_LOG_DIR>/app.json.log` | File that `ship_logs` sends to Elasticsearch |
+| `LOG_SHIP_BATCH_SIZE` | `500` | Log entries per bulk request |
 | `ELASTICSEARCH_URL` | `http://localhost:9200` | Elasticsearch address (`http://elasticsearch:9200` inside compose) |
 | `ELASTICSEARCH_USERNAME` | `elastic` | Elasticsearch user |
 | `ELASTICSEARCH_LOG_INDEX` | `dockerhub-logs` | Index that stores the logs |
@@ -182,7 +184,7 @@ Every message goes to the console and to two files in `DJANGO_LOG_DIR`:
 | File | Format | Used by |
 | --- | --- | --- |
 | `app.log` | `2026-11-15 14:03:22,481 \| INFO     \| repositories.views \| Repository created: ...` | developers |
-| `app.json.log` | one JSON object per line: `timestamp` (UTC), `level`, `logger`, `message`, ... | Filebeat -> Elasticsearch -> Analytics |
+| `app.json.log` | one JSON object per line: `timestamp` (UTC), `level`, `logger`, `message`, ... | `ship_logs` -> Elasticsearch -> Analytics |
 
 The files are not rotated by the app: several Gunicorn workers write to them,
 so rotation is left to an external tool (logrotate); the app reopens a file
@@ -258,6 +260,42 @@ one field per key that `JsonFormatter` writes, plus the request fields
 (`http_status`, `duration_ms`, `client_ip`, ...). A new `extra={...}` field is
 mapped automatically as a `keyword`; add it to `LogEntry` if it needs another
 type (number, date, IP).
+
+### Shipping logs
+
+`ship_logs` sends the new lines of `app.json.log` to the log index
+([analytics/shipping.py](analytics/shipping.py)). It creates the index if it
+does not exist yet.
+
+```bash
+python manage.py ship_logs                  # once
+python manage.py ship_logs --interval 30    # every 30 s until Ctrl+C
+```
+
+How it works:
+
+- The position reached in the file (byte offset) is stored in the database
+  (`LogShippingState`). Each run reads from there and saves the new offset
+  only after Elasticsearch has accepted the lines.
+- Lines are sent with bulk requests of `LOG_SHIP_BATCH_SIZE` entries.
+- A line that is still being written (no newline yet) waits for the next run.
+- Each document id is derived from the file, the offset and the line, so a
+  line sent twice (after a crash or a retry) overwrites the same document
+  instead of creating a duplicate.
+- If Elasticsearch is down or overloaded, nothing is skipped: the same lines
+  are sent on the next run. With `--interval` the command keeps running and
+  retries; without it, it exits with an error.
+- Lines Elasticsearch rejects for good (e.g. a field with the wrong type) and
+  lines that are not JSON log entries are skipped and reported as a WARNING.
+- Rotation: if `app.json.log` was renamed to `app.json.log.1`, the rest of the
+  old file is sent first, then the new file from the start. A truncated file
+  is read from the start. Use logrotate's default (rename), not
+  `copytruncate`: if the file is truncated and grows past the old offset
+  before the next run, the start of the new file is skipped.
+
+Run only one `ship_logs` process per log file. The Elasticsearch client's own
+INFO messages are not logged, otherwise every bulk request would add a line
+to the file being shipped.
 
 ## Container registry
 
