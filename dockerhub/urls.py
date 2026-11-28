@@ -9,6 +9,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("accounts.urls")),
     path("repositories/", include("repositories.urls")),
+    path("analytics/", include("analytics.urls")),
     path("search/", RepositoryListView.as_view(), name="repository_search"),
     path("registry/token/", RegistryTokenView.as_view(), name="registry_token"),
     path("", include("core.urls")),

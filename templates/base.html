@@ -55,6 +55,10 @@
                         Accounts
                     </a>
 
+                    <a href="{% url 'analytics:log_search' %}" class="nav-button">
+                        Analytics
+                    </a>
+
                 {% endif %}
                 {% if user.is_super_admin %}
                     <a href="{% url 'accounts:admin_list' %}" class="nav-button">
