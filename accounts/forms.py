@@ -103,6 +103,32 @@ class AdminRegistrationForm(SignUpForm):
             user.save()
         return user
 
+class ProfileForm(forms.ModelForm):
+    """The signed-in user edits their own name and email.
+
+    The username cannot be changed: it is the namespace of the user's
+    repositories (``alice/my-app``) and of their images in the registry. Role
+    and badge are managed by administrators, so they are not fields here.
+    """
+
+    class Meta:
+        model = User
+        fields = ("first_name", "last_name", "email")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["email"].max_length = EMAIL_MAX_LENGTH
+        self.fields["email"].widget.attrs["autocomplete"] = "email"
+        self.fields["first_name"].widget.attrs["autocomplete"] = "given-name"
+        self.fields["last_name"].widget.attrs["autocomplete"] = "family-name"
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        if User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+            raise ValidationError("A user with this email already exists.", code="unique")
+        return email
+
+
 class AccountPasswordChangeForm(PasswordChangeForm):
     """Change the password with the current one; the new one must be different.
 

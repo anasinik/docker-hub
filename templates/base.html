@@ -65,7 +65,7 @@
                         Administrators
                     </a>
                 {% endif %}
-                <span>{{ user.username }}</span>
+                <a href="{% url 'accounts:profile' %}" title="Your profile">{{ user.username }}</a>
 
                 <form action="{% url 'accounts:logout' %}" method="post" class="nav-logout">
                     {% csrf_token %}
