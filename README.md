@@ -43,6 +43,8 @@ The app is then available at http://127.0.0.1:8000/:
 | Sign up | http://127.0.0.1:8000/accounts/register/ |
 | Sign in | http://127.0.0.1:8000/accounts/login/ |
 | Change password | http://127.0.0.1:8000/accounts/password/ |
+| Profile | http://127.0.0.1:8000/accounts/profile/ |
+| Edit profile | http://127.0.0.1:8000/accounts/profile/edit/ |
 | Administrators (super admin) | http://127.0.0.1:8000/accounts/admins/ |
 | Register administrator (super admin) | http://127.0.0.1:8000/accounts/admins/new/ |
 | My repositories (regular users) | http://127.0.0.1:8000/repositories/ |
@@ -111,6 +113,21 @@ new admin, who must change it at the first sign-in, the same way as the super
 admin after setup: until then every page redirects to `/accounts/password/` and
 `docker login` is refused. The list shows "Initial password not changed" for
 those admins. Registrations are logged as `Admin registered` (without the password).
+
+### Profile
+
+Every signed-in user (all roles) opens their profile by clicking their username
+in the header (`/accounts/profile/`). It shows the username, name, email, role,
+date joined and, for regular users, the publisher badge and the image namespace
+(`username/<repository>`).
+
+"Edit profile" (`/accounts/profile/edit/`) changes the first name, last name and
+email. The username cannot be changed, because it is the namespace of the user's
+repositories and images; role and badge are set by administrators. The email is
+required, lowercased and must not belong to another user (case does not
+matter); the new email works for signing in right away. Changes are logged as
+`Profile updated` with the names of the changed fields. "Change password" on
+the profile opens `/accounts/password/`.
 
 ## Repositories
 

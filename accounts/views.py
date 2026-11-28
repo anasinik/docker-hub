@@ -9,11 +9,19 @@ from django.views.decorators.vary import vary_on_headers
 from django.contrib.auth.views import LoginView, LogoutView, PasswordChangeView
 from django.shortcuts import redirect, get_object_or_404, render
 from django.urls import reverse, reverse_lazy
-from django.views.generic import FormView, ListView, View
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import FormView, ListView, TemplateView, UpdateView, View
 
 from accounts.permissions import AdminRequiredMixin, SuperAdminRequiredMixin
 
-from .forms import AccountPasswordChangeForm, AdminRegistrationForm, LoginForm, SignUpForm, UserBadgeAssignmentForm
+from .forms import (
+    AccountPasswordChangeForm,
+    AdminRegistrationForm,
+    LoginForm,
+    ProfileForm,
+    SignUpForm,
+    UserBadgeAssignmentForm,
+)
 from .models import Badge, Role, User
 
 logger = logging.getLogger(__name__)
@@ -81,6 +89,41 @@ class AccountPasswordChangeView(PasswordChangeView):
         user = form.user
         logger.info("Password changed: username=%s id=%s required=%s", user.username, user.pk, was_required)
         messages.success(self.request, "Your password has been changed.")
+        return response
+
+
+class ProfileView(LoginRequiredMixin, TemplateView):
+    """Every signed-in user sees their own profile; there are no profile pages of other users."""
+
+    template_name = "accounts/profile.html"
+
+
+class ProfileUpdateView(LoginRequiredMixin, UpdateView):
+    """The signed-in user edits their name and email (``ProfileForm``)."""
+
+    template_name = "accounts/profile_form.html"
+    form_class = ProfileForm
+    success_url = reverse_lazy("accounts:profile")
+
+    def get_object(self, queryset=None):
+        # Always the signed-in user, so nobody can edit another profile. A
+        # fresh copy, because an invalid form writes the rejected values onto
+        # its instance, and request.user is also rendered in the header.
+        return User.objects.get(pk=self.request.user.pk)
+
+    def form_valid(self, form):
+        if not form.has_changed():
+            messages.info(self.request, "Nothing was changed.")
+            return redirect(self.success_url)
+
+        response = super().form_valid(form)
+        logger.info(
+            "Profile updated: username=%s id=%s fields=%s",
+            self.object.username,
+            self.object.pk,
+            ",".join(form.changed_data),
+        )
+        messages.success(self.request, "Your profile has been updated.")
         return response
 
 

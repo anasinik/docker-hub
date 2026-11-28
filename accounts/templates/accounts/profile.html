@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Profile · Docker Hub{% endblock %}
+
+{% block content %}
+    <section class="form-card" aria-labelledby="profile-title">
+        <h1 id="profile-title">{{ user.username }}</h1>
+
+        <dl class="profile-details">
+            <dt>Name</dt>
+            <dd>{{ user.get_full_name|default:"Not set" }}</dd>
+
+            <dt>Email</dt>
+            <dd>{{ user.email }}</dd>
+
+            <dt>Role</dt>
+            <dd>{{ user.get_role_display }}</dd>
+
+            {% if user.is_regular_user %}
+                <dt>Publisher badge</dt>
+                <dd>
+                    {% if user.badge == "VERIFIED_PUBLISHER" %}
+                        <span class="repo-badge verified">Verified Publisher</span>
+                    {% elif user.badge == "SPONSORED_OSS" %}
+                        <span class="repo-badge sponsored">Sponsored OSS</span>
+                    {% else %}
+                        None
+                    {% endif %}
+                </dd>
+
+                <dt>Images</dt>
+                <dd><code>{{ user.username }}/&lt;repository&gt;</code></dd>
+            {% endif %}
+
+            <dt>Member since</dt>
+            <dd>{{ user.date_joined|date:"M j, Y" }}</dd>
+        </dl>
+
+        <div class="profile-actions">
+            <a href="{% url 'accounts:profile_edit' %}" class="button-primary button-inline">Edit profile</a>
+            <a href="{% url 'accounts:password_change' %}">Change password</a>
+        </div>
+    </section>
+{% endblock %}

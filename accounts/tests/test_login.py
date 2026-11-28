@@ -240,7 +240,9 @@ class HeaderTests(TestCase):
 
         response = self.client.get(reverse("core:home"))
 
-        self.assertContains(response, "<span>alice</span>", html=True)
+        self.assertContains(
+            response, f'<a href="{reverse("accounts:profile")}" title="Your profile">alice</a>', html=True
+        )
         self.assertContains(response, f'action="{self.logout_url}"')
         self.assertNotContains(response, f'href="{self.login_url}')
 

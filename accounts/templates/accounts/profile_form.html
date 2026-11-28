@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Edit profile · Docker Hub{% endblock %}
+
+{% block content %}
+    <section class="form-card">
+        <h1>Edit profile</h1>
+        <p class="form-intro">
+            The username <code>{{ user.username }}</code> cannot be changed, because it is the namespace of your repositories.
+        </p>
+
+        <form method="post" action="{% url 'accounts:profile_edit' %}">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="form-errors" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            {% for field in form %}
+                <div class="form-field{% if field.errors %} has-error{% endif %}">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.errors %}
+                        <div class="field-errors" role="alert">{{ field.errors }}</div>
+                    {% endif %}
+                    {% if field.help_text %}
+                        <div class="help-text">{{ field.help_text|safe }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <div class="profile-actions">
+                <button type="submit" class="button-primary button-inline">Save</button>
+                <a href="{% url 'accounts:profile' %}">Cancel</a>
+            </div>
+        </form>
+    </section>
+{% endblock %}
