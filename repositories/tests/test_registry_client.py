@@ -19,7 +19,7 @@ from repositories.services.registry.base import (
 from repositories.services.registry.factory import get_registry_client
 from repositories.services.registry.http import HttpRegistryClient
 from repositories.services.registry.mock import MockRegistryClient
-from repositories.tests.registry_keys import decode, token_settings
+from repositories.tests.registry_keys import KEY_DIR, decode, token_settings
 
 HTTP_CLIENT_CLASS = "repositories.services.registry.http.HttpRegistryClient"
 REQUESTS_GET = "repositories.services.registry.http.requests.get"
@@ -294,6 +294,37 @@ class HttpRegistryClientApiTests(SimpleTestCase):
                 "http://registry.test:5000/v2/alice/web/manifests/sha256:old",
             ],
         )
+
+    def test_missing_signing_key_raises_registry_error(self):
+        with token_settings(REGISTRY_TOKEN_PRIVATE_KEY_PATH=KEY_DIR / "missing.key"):
+            with self.assertRaisesMessage(RegistryError, "Cannot sign a registry token"):
+                self.client.list_tags("alice/web")
+
+        self.request.assert_not_called()
+
+    def test_invalid_json_raises_registry_error(self):
+        not_json = api_response()
+        not_json.json.side_effect = requests.JSONDecodeError("Expecting value", "<html>", 0)
+        not_object = api_response(json_body=["not", "an", "object"])
+
+        for body in (not_json, not_object):
+            with self.subTest(body=body):
+                self.request.side_effect = [body]
+                with self.assertRaises(RegistryError):
+                    self.client.list_tags("alice/web")
+
+                self.request.side_effect = [body]
+                with self.assertRaises(RegistryError):
+                    self.client.get_manifest("alice/web", "sha256:abc")
+
+    def test_invalid_json_of_platform_manifest_raises_registry_error(self):
+        index = {"mediaType": OCI_INDEX, "manifests": [{"digest": "sha256:amd64", "mediaType": OCI_MANIFEST}]}
+        broken = api_response()
+        broken.json.side_effect = ValueError("truncated")
+        self.request.side_effect = [api_response(json_body=index), broken]
+
+        with self.assertRaises(RegistryError):
+            self.client.get_manifest("alice/web", "sha256:index")
 
     def test_delete_repository_without_images(self):
         self.request.return_value = api_response(404)

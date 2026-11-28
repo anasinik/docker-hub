@@ -16,7 +16,8 @@ class Visibility(models.TextChoices):
 class Repository(models.Model):
     """A container image repository owned by a user.
 
-    Images are addressed as ``<owner username>/<name>``, see ``registry_path``.
+    Images are addressed as ``<owner username>/<name>``, or only ``<name>`` for
+    an official repository; see ``registry_path``.
     """
 
     owner = models.ForeignKey(
@@ -68,7 +69,13 @@ class Repository(models.Model):
 
     @property
     def registry_path(self):
-        """Path used to push and pull images, e.g. ``alice/my-app``."""
+        """Path used to push and pull images.
+
+        ``owner/name`` for a user's repository (e.g. ``alice/my-app``), only
+        ``name`` for an official repository (e.g. ``nginx``), like Docker Hub.
+        """
+        if self.is_official:
+            return self.name
         return f"{self.owner.username}/{self.name}"
 
     @property

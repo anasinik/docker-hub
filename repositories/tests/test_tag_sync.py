@@ -21,7 +21,9 @@ from repositories.services.registry.base import (
 from repositories.services.registry.events import repositories_to_sync
 from repositories.services.registry import sync as sync_module
 from repositories.services.registry.mock import MockRegistryClient
+from repositories.services.registry.factory import get_registry_client
 from repositories.services.registry.sync import SyncNotConfiguredError, sync_repository
+from repositories.tests.registry_keys import KEY_DIR, token_settings
 
 PASSWORD = "Tr1cky-pass-2025"
 EVENTS_TOKEN = "events-secret"
@@ -523,3 +525,148 @@ class SyncWithMockClientTests(TestCase):
 
         self.assertIn("Registry sync refused", logs.output[0])
         self.assert_tags_kept()
+
+
+HTTP_CLIENT_CLASS = "repositories.services.registry.http.HttpRegistryClient"
+REQUESTS_REQUEST = "repositories.services.registry.http.requests.request"
+
+
+def http_response(status_code=200, json_body=None, headers=None, url="http://registry.test:5000/v2/"):
+    response = Mock(status_code=status_code, headers=headers or {}, url=url, links={})
+    response.request.method = "GET"
+    if isinstance(json_body, Exception):
+        response.json.side_effect = json_body
+    else:
+        response.json.return_value = json_body if json_body is not None else {}
+    return response
+
+
+@token_settings(
+    REGISTRY_CLIENT_CLASS=HTTP_CLIENT_CLASS,
+    REGISTRY_URL="http://registry.test:5000",
+    REGISTRY_EVENTS_TOKEN=EVENTS_TOKEN,
+)
+class HttpClientErrorHandlingTests(TestCase):
+    """Token and JSON errors of the real client are RegistryErrors, so callers handle them."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.alice = User.objects.create_user(username="alice", email="alice@example.com", password=PASSWORD)
+        # Created first, so sync_registry fails on it before reaching alice/web
+        cls.api = Repository.objects.create(owner=cls.alice, name="api")
+        cls.web = Repository.objects.create(owner=cls.alice, name="web")
+
+    def setUp(self):
+        Tag.objects.create(repository=self.web, name="old", digest="sha256:old", pushed_at=PUSHED_AT)
+        patcher = patch(REQUESTS_REQUEST)
+        self.request = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def missing_key(self):
+        return token_settings(REGISTRY_TOKEN_PRIVATE_KEY_PATH=KEY_DIR / "missing.key")
+
+    def test_webhook_returns_200_when_token_cannot_be_signed(self):
+        with self.missing_key(), self.assertLogs("repositories.views", "WARNING") as logs:
+            response = self.client.post(
+                reverse("registry_events"),
+                json.dumps({"events": [event(repository="alice/web")]}),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {EVENTS_TOKEN}",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Registry unavailable, tags not synced: path=alice/web", logs.output[0])
+        self.assertIn("Cannot sign a registry token", logs.output[0])
+        self.request.assert_not_called()
+        self.assertEqual(list(self.web.tags.values_list("name", flat=True)), ["old"])
+
+    def test_delete_returns_503_when_token_cannot_be_signed(self):
+        self.client.force_login(self.alice)
+
+        with self.missing_key(), self.assertLogs("repositories.views", "WARNING"):
+            response = self.client.post(reverse("repositories:delete", args=[self.web.pk]), {"confirm_name": "web"})
+
+        self.assertEqual(response.status_code, 503)
+        self.assertTrue(Repository.objects.filter(pk=self.web.pk).exists())
+
+    def test_sync_registry_continues_after_invalid_json(self):
+        def registry(method, url, **kwargs):
+            if url.endswith("/v2/alice/api/tags/list?n=100"):
+                return http_response(json_body=ValueError("Expecting value"), url=url)
+            if url.endswith("/v2/alice/web/tags/list?n=100"):
+                return http_response(json_body={"tags": ["1.0"]}, url=url)
+            if method == "HEAD":
+                return http_response(headers={"Docker-Content-Digest": "sha256:new"}, url=url)
+            return http_response(
+                json_body={"mediaType": OCI_MANIFEST, "config": {"size": 1}, "layers": [{"size": 2}]},
+                headers={"Docker-Content-Digest": "sha256:new"},
+                url=url,
+            )
+
+        self.request.side_effect = registry
+        out, err = StringIO(), StringIO()
+
+        with self.assertLogs("repositories.services.registry.sync", "INFO"):
+            with self.assertRaisesMessage(CommandError, "1 repositories could not be synced"):
+                call_command("sync_registry", stdout=out, stderr=err)
+
+        self.assertIn("alice/api: ", err.getvalue())
+        self.assertIn("did not return JSON", err.getvalue())
+        self.assertIn("alice/web: added=1 updated=0 removed=1", out.getvalue())
+        self.assertEqual(list(self.web.tags.values_list("name", "digest", "size")), [("1.0", "sha256:new", 3)])
+
+
+@token_settings(REGISTRY_CLIENT_CLASS=HTTP_CLIENT_CLASS, REGISTRY_URL="http://registry.test:5000")
+class OfficialRepositoryRegistryTests(TestCase):
+    """Official repositories live at ``<name>`` in the registry, without an owner prefix."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = User.objects.create_admin(username="admin1", email="admin@example.com", password=PASSWORD)
+        cls.official = Repository.objects.create(owner=cls.admin, name="nginx", is_official=True)
+
+    def test_sync_uses_path_without_owner(self):
+        registry = FakeRegistry({"nginx": {"latest": image("sha256:off", 42)}})
+
+        with patch(SYNC_CLIENT, return_value=registry), self.assertLogs("repositories.services.registry.sync", "INFO"):
+            output = StringIO()
+            call_command("sync_registry", "--repository", "nginx", stdout=output)
+
+        self.assertIn("nginx: added=1", output.getvalue())
+        self.assertEqual(self.official.tags.get().digest, "sha256:off")
+
+    @override_settings(REGISTRY_EVENTS_TOKEN=EVENTS_TOKEN)
+    def test_webhook_syncs_official_repository(self):
+        registry = FakeRegistry({"nginx": {"latest": image("sha256:off")}})
+
+        with patch(SYNC_CLIENT, return_value=registry), self.assertLogs("repositories.services.registry.sync", "INFO"):
+            response = self.client.post(
+                reverse("registry_events"),
+                json.dumps({"events": [event(repository="nginx", tag="latest")]}),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {EVENTS_TOKEN}",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.official.tags.get().name, "latest")
+
+    @patch(REQUESTS_REQUEST)
+    def test_delete_uses_path_without_owner(self, request):
+        request.side_effect = [
+            http_response(json_body={"tags": ["latest"]}),
+            http_response(headers={"Docker-Content-Digest": "sha256:off"}),
+            http_response(202),
+        ]
+
+        deleted = get_registry_client().delete_repository(self.official.registry_path)
+
+        self.assertEqual(deleted, 1)
+        urls = [call.args[1] for call in request.call_args_list]
+        self.assertEqual(
+            urls,
+            [
+                "http://registry.test:5000/v2/nginx/tags/list?n=100",
+                "http://registry.test:5000/v2/nginx/manifests/latest",
+                "http://registry.test:5000/v2/nginx/manifests/sha256:off",
+            ],
+        )

@@ -476,7 +476,7 @@ Deleting a repository deletes its manifests through the registry API. The layer
 files stay on disk until the registry's garbage collector removes them:
 
 ```bash
-docker compose exec registry bin/registry garbage-collect --delete-untagged /etc/docker/registry/config.yml
+docker compose exec registry bin/registry garbage-collect /etc/docker/registry/config.yml
 ```
 
 Run it when nobody is pushing (pushes during garbage collection can lose layers).

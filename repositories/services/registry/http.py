@@ -61,7 +61,12 @@ class HttpRegistryClient:
 
     def _request(self, method, url, actions, path, **kwargs):
         access = [{"type": "repository", "name": path, "actions": actions}]
-        headers = {"Authorization": f"Bearer {issue_internal_token(access)}", **kwargs.pop("headers", {})}
+        try:
+            token = issue_internal_token(access)
+        except (OSError, ValueError) as error:
+            # Missing or unreadable REGISTRY_TOKEN_PRIVATE_KEY_PATH
+            raise RegistryError(f"Cannot sign a registry token: {error}") from error
+        headers = {"Authorization": f"Bearer {token}", **kwargs.pop("headers", {})}
         if not url.startswith("http"):
             url = urljoin(self.base_url, url)
         try:
@@ -88,6 +93,17 @@ class HttpRegistryClient:
                 f"{response.request.method} {response.url} returned {response.status_code}"
             )
 
+    @staticmethod
+    def _json(response):
+        """The response body as a JSON object; anything else is a RegistryError."""
+        try:
+            body = response.json()
+        except ValueError as error:
+            raise RegistryError(f"{response.url} did not return JSON: {error}") from error
+        if not isinstance(body, dict):
+            raise RegistryError(f"{response.url} did not return a JSON object")
+        return body
+
     def list_tags(self, path):
         tags = []
         url = f"/v2/{path}/tags/list?n=100"
@@ -98,7 +114,7 @@ class HttpRegistryClient:
                 return []
             self._check(response)
             # An emptied repository answers {"tags": null}
-            tags.extend(response.json().get("tags") or [])
+            tags.extend(self._json(response).get("tags") or [])
             url = response.links.get("next", {}).get("url")
         return tags
 
@@ -115,7 +131,7 @@ class HttpRegistryClient:
     def get_manifest(self, path, reference):
         response = self._manifest_request("GET", path, reference)
         self._check(response)
-        manifest = response.json()
+        manifest = self._json(response)
         media_type = manifest.get("mediaType") or response.headers.get("Content-Type", "")
         digest = response.headers.get("Docker-Content-Digest") or reference
 
@@ -133,7 +149,7 @@ class HttpRegistryClient:
     def _get_json(self, path, digest):
         response = self._manifest_request("GET", path, digest)
         self._check(response)
-        return response.json()
+        return self._json(response)
 
     @staticmethod
     def _is_attestation(descriptor):

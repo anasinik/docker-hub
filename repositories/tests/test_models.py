@@ -31,6 +31,12 @@ class RepositoryModelTests(TestCase):
         self.assertEqual(repository.registry_path, "alice/my-app")
         self.assertEqual(str(repository), "alice/my-app")
 
+    def test_official_repository_path_has_no_owner_prefix(self):
+        repository = Repository.objects.create(owner=self.alice, name="nginx", is_official=True)
+
+        self.assertEqual(repository.registry_path, "nginx")
+        self.assertEqual(str(repository), "nginx")
+
     def test_owner_reverse_relation(self):
         Repository.objects.create(owner=self.alice, name="nginx")
         Repository.objects.create(owner=self.alice, name="redis")
