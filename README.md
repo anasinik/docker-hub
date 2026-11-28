@@ -300,6 +300,28 @@ Run only one `ship_logs` process per log file. The Elasticsearch client's own
 INFO messages are not logged, otherwise every bulk request would add a line
 to the file being shipped.
 
+### Searching logs (Analytics)
+
+Administrators (admin and super admin) search the shipped logs at
+`/analytics/` (**Analytics** in the header). Regular users get 403 Forbidden.
+All criteria are optional and combined with AND:
+
+| Field | Elasticsearch query | Notes |
+| --- | --- | --- |
+| From / To | `range` filter on `timestamp` (`gte` / `lte`) | entered in `TIME_ZONE` (Europe/Belgrade); logs are stored in UTC |
+| Level | `terms` filter on `level` | several levels = any of them |
+| Message contains | `match` on `message` (all words) + `match_phrase` (boost 2) | the only scored part |
+
+With text, results are sorted by relevance (the exact phrase ranks highest,
+newest first on equal score) and the score is shown; without text, newest
+first. Results are paged 50 at a time. Elasticsearch only pages through the
+first 10 000 hits, so a larger total is shown as "At least 10000".
+
+The query is built in [analytics/search.py](analytics/search.py)
+(`build_search`), so it can be tested without Elasticsearch. If Elasticsearch
+is not reachable, the page shows an error instead of failing; if the log
+index does not exist yet, the search returns no results.
+
 ## Container registry
 
 Images are stored in our own registry, [Distribution](https://distribution.github.io/distribution/) (`registry:2`), which runs as the `registry` service in [docker-compose.yml](docker-compose.yml).

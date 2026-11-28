@@ -1,0 +1,117 @@
+{% load tz %}
+{% get_current_timezone as current_timezone %}
+
+<div id="search-content">
+
+    <header class="section-header">
+        <div>
+            <h1>Analytics</h1>
+            <p>Search application logs by date, level and text.</p>
+        </div>
+    </header>
+
+    <form
+        method="get"
+        action="{% url 'analytics:log_search' %}"
+        class="log-search"
+        hx-get="{% url 'analytics:log_search' %}"
+        hx-target="#search-content"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        novalidate
+    >
+        {% if form.non_field_errors %}
+            <div class="form-errors" role="alert">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="log-search-fields">
+            {% for field in form %}
+                {% if field.name != "levels" %}
+                    <div class="form-field{% if field.errors %} has-error{% endif %} log-search-{{ field.name }}">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}<div class="field-errors">{{ field.errors }}</div>{% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <fieldset class="badge-filter log-level-filter{% if form.levels.errors %} has-error{% endif %}">
+            <legend>Level</legend>
+            {% for choice in form.levels %}
+                <label class="badge-filter-option" for="{{ choice.id_for_label }}">
+                    {{ choice.tag }}
+                    <span class="log-level log-level-{{ choice.data.value|lower }}">{{ choice.choice_label }}</span>
+                </label>
+            {% endfor %}
+            {% if form.levels.errors %}<div class="field-errors">{{ form.levels.errors }}</div>{% endif %}
+        </fieldset>
+
+        <div class="search-actions">
+            <button type="submit" class="button-primary button-inline">Search</button>
+            {% if querystring %}
+                <a
+                    href="{% url 'analytics:log_search' %}"
+                    class="filter-clear"
+                    hx-get="{% url 'analytics:log_search' %}"
+                    hx-target="#search-content"
+                    hx-swap="outerHTML"
+                    hx-push-url="true"
+                >
+                    Clear
+                </a>
+            {% endif %}
+            <span class="help-text">Times are in {{ current_timezone }}.</span>
+        </div>
+    </form>
+
+    {% if search_error %}
+        <p class="message message-error" role="alert">{{ search_error }}</p>
+    {% elif result %}
+        <p class="search-results-count">
+            {% if not result.total_is_exact %}At least {% endif %}{{ result.total }} log entr{{ result.total|pluralize:"y,ies" }}{% if criteria.text %}, most relevant first{% else %}, newest first{% endif %}
+        </p>
+
+        {% if entries %}
+            <div class="tags-table-wrapper">
+                <table class="tags-table log-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Time</th>
+                            <th scope="col">Level</th>
+                            <th scope="col">Logger</th>
+                            <th scope="col">Message</th>
+                            {% if criteria.text %}<th scope="col">Score</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in entries %}
+                            <tr>
+                                <td class="tag-date">
+                                    <time datetime="{{ entry.timestamp|date:'c' }}">{{ entry.timestamp|date:"Y-m-d H:i:s" }}</time>
+                                </td>
+                                <td><span class="log-level log-level-{{ entry.level|lower }}">{{ entry.level }}</span></td>
+                                <td class="log-logger">{{ entry.logger }}</td>
+                                <td class="log-message">
+                                    {{ entry.message }}
+                                    {% if entry.exception %}
+                                        <details>
+                                            <summary>Exception</summary>
+                                            <pre>{{ entry.exception }}</pre>
+                                        </details>
+                                    {% endif %}
+                                </td>
+                                {% if criteria.text %}<td>{{ entry.score|floatformat:2 }}</td>{% endif %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% include "partials/pagination.html" with pagination_label="Log result pages" %}
+        {% else %}
+            <p class="search-empty">No log entries match these criteria.</p>
+        {% endif %}
+    {% endif %}
+
+</div>

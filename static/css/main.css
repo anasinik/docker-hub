@@ -1155,3 +1155,98 @@ a.button-danger {
     font-weight: 600;
     white-space: nowrap;
 }
+
+/* Analytics: log search */
+
+.log-search {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    border: 1px solid #dde3ea;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.log-search-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    gap: 0 1rem;
+}
+
+.log-search-text {
+    grid-column: 1 / -1;
+}
+
+.log-level-filter {
+    margin-bottom: 1rem;
+}
+
+.log-search .search-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.log-search .help-text {
+    margin: 0;
+}
+
+.log-level {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: #eef2f6;
+    color: #526174;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.log-level-info {
+    background: #e3ecfa;
+    color: #1652c7;
+}
+
+.log-level-warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.log-level-error {
+    background: #fdecec;
+    color: #c62828;
+}
+
+.log-level-critical {
+    background: #c62828;
+    color: #fff;
+}
+
+.log-table {
+    background: #fff;
+}
+
+.log-logger {
+    color: #5f6b7a;
+    font-family: monospace;
+    white-space: nowrap;
+}
+
+.log-message {
+    word-break: break-word;
+}
+
+.log-message details {
+    margin-top: 0.5rem;
+}
+
+.log-message pre {
+    max-height: 20rem;
+    overflow: auto;
+    padding: 0.75rem;
+    border-radius: 4px;
+    background: #f5f7fa;
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+}
