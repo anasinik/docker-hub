@@ -59,6 +59,15 @@ note bottom of LogEntry
   Stored in Elasticsearch, not in the relational database.
 end note
 
+class LogShippingState {
+  path: String
+  fileId: String
+  offset: long
+  updatedAt: DateTime
+}
+
+LogShippingState ..> LogEntry: ships new log lines as
+
 User "0..*" --  "0..*" Repository: stars
 User "1" ->  "0..*" Repository: owns
 Repository "1" *-- "0..*" Tag: contains

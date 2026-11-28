@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Register administrator · Docker Hub{% endblock %}
+
+{% block content %}
+    <section class="form-card">
+        <h1>Register administrator</h1>
+        <p class="form-intro">
+            Give the initial password to the new administrator. They must change it at the first sign-in.
+        </p>
+
+        <form method="post" action="{% url 'accounts:admin_create' %}">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="form-errors" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            {% for field in form %}
+                <div class="form-field{% if field.errors %} has-error{% endif %}">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.errors %}
+                        <div class="field-errors" role="alert">{{ field.errors }}</div>
+                    {% endif %}
+                    {% if field.help_text %}
+                        <div class="help-text">{{ field.help_text|safe }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <button type="submit" class="button-primary">Register</button>
+        </form>
+    </section>
+{% endblock %}

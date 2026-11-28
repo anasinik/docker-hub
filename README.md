@@ -10,7 +10,7 @@ dockerhub/      Django project (settings, root URLs, WSGI/ASGI)
 accounts/       Custom user model (AUTH_USER_MODEL = accounts.User)
 core/           Home page and health check endpoint
 repositories/   Image repositories (create, list own, edit settings, delete, ...)
-analytics/      Log analytics: Elasticsearch connection and log index
+analytics/      Log analytics: Elasticsearch connection, log index and log shipping
 templates/      Shared templates (base.html)
 static/         Shared static files
 docs/           Class diagram
@@ -43,6 +43,8 @@ The app is then available at http://127.0.0.1:8000/:
 | Sign up | http://127.0.0.1:8000/accounts/register/ |
 | Sign in | http://127.0.0.1:8000/accounts/login/ |
 | Change password | http://127.0.0.1:8000/accounts/password/ |
+| Administrators (super admin) | http://127.0.0.1:8000/accounts/admins/ |
+| Register administrator (super admin) | http://127.0.0.1:8000/accounts/admins/new/ |
 | My repositories (regular users) | http://127.0.0.1:8000/repositories/ |
 | Create repository (regular users) | http://127.0.0.1:8000/repositories/new/ |
 | Repository settings (owner) | http://127.0.0.1:8000/repositories/&lt;id&gt;/settings/ |
@@ -81,7 +83,7 @@ set a new password with `python manage.py changepassword superadmin`.
 | Role | How the account is created | Notes |
 | --- | --- | --- |
 | Super admin | `setup_super_admin` (first start) | Only one can exist; must change the generated password |
-| Admin | Added by the super admin | Can use the Django admin |
+| Admin | Registered by the super admin at `/accounts/admins/new/` | Can use the Django admin; must change the initial password |
 | Regular user | Signs up at `/accounts/register/` | Default role |
 
 Usernames are 4-30 lowercase letters and digits, because they are also the
@@ -94,6 +96,21 @@ not matter). After signing in, users return to the page they came from, or to
 the home page. Pages that need a login send visitors there. "Sign out" in the
 header ends the session; logout only accepts POST, so other sites cannot sign
 users out with a link. Successful logins, failed logins and logouts are logged.
+
+### Registering administrators
+
+Only the super admin registers administrators: "Administrators" in the header
+opens `/accounts/admins/`, the list of admins (newest first, 12 per page), and
+"Register administrator" opens the form at `/accounts/admins/new/`. Other users
+get 403.
+
+The form asks for a username, an email and an initial password, with the same
+rules as sign-up, except that reserved usernames are allowed. The new account
+always gets the Admin role. The super admin gives the initial password to the
+new admin, who must change it at the first sign-in, the same way as the super
+admin after setup: until then every page redirects to `/accounts/password/` and
+`docker login` is refused. The list shows "Initial password not changed" for
+those admins. Registrations are logged as `Admin registered` (without the password).
 
 ## Repositories
 
@@ -145,6 +162,8 @@ for the full list.
 | `DJANGO_LOG_DIR` | `<project>/logs` | Directory of the log files |
 | `DJANGO_LOG_TO_FILE` | `True` | `False` logs to the console only |
 | `ELASTIC_PASSWORD` | | Password of the `elastic` user; required by `docker compose` |
+| `LOG_SHIP_FILE` | `<DJANGO_LOG_DIR>/app.json.log` | File that `ship_logs` sends to Elasticsearch |
+| `LOG_SHIP_BATCH_SIZE` | `500` | Log entries per bulk request |
 | `ELASTICSEARCH_URL` | `http://localhost:9200` | Elasticsearch address (`http://elasticsearch:9200` inside compose) |
 | `ELASTICSEARCH_USERNAME` | `elastic` | Elasticsearch user |
 | `ELASTICSEARCH_LOG_INDEX` | `dockerhub-logs` | Index that stores the logs |
@@ -168,7 +187,7 @@ Every message goes to the console and to two files in `DJANGO_LOG_DIR`:
 | File | Format | Used by |
 | --- | --- | --- |
 | `app.log` | `2026-11-15 14:03:22,481 \| INFO     \| repositories.views \| Repository created: ...` | developers |
-| `app.json.log` | one JSON object per line: `timestamp` (UTC), `level`, `logger`, `message`, ... | Filebeat -> Elasticsearch -> Analytics |
+| `app.json.log` | one JSON object per line: `timestamp` (UTC), `level`, `logger`, `message`, ... | `ship_logs` -> Elasticsearch -> Analytics |
 
 The files are not rotated by the app: several Gunicorn workers write to them,
 so rotation is left to an external tool (logrotate); the app reopens a file
@@ -244,6 +263,42 @@ one field per key that `JsonFormatter` writes, plus the request fields
 (`http_status`, `duration_ms`, `client_ip`, ...). A new `extra={...}` field is
 mapped automatically as a `keyword`; add it to `LogEntry` if it needs another
 type (number, date, IP).
+
+### Shipping logs
+
+`ship_logs` sends the new lines of `app.json.log` to the log index
+([analytics/shipping.py](analytics/shipping.py)). It creates the index if it
+does not exist yet.
+
+```bash
+python manage.py ship_logs                  # once
+python manage.py ship_logs --interval 30    # every 30 s until Ctrl+C
+```
+
+How it works:
+
+- The position reached in the file (byte offset) is stored in the database
+  (`LogShippingState`). Each run reads from there and saves the new offset
+  only after Elasticsearch has accepted the lines.
+- Lines are sent with bulk requests of `LOG_SHIP_BATCH_SIZE` entries.
+- A line that is still being written (no newline yet) waits for the next run.
+- Each document id is derived from the file, the offset and the line, so a
+  line sent twice (after a crash or a retry) overwrites the same document
+  instead of creating a duplicate.
+- If Elasticsearch is down or overloaded, nothing is skipped: the same lines
+  are sent on the next run. With `--interval` the command keeps running and
+  retries; without it, it exits with an error.
+- Lines Elasticsearch rejects for good (e.g. a field with the wrong type) and
+  lines that are not JSON log entries are skipped and reported as a WARNING.
+- Rotation: if `app.json.log` was renamed to `app.json.log.1`, the rest of the
+  old file is sent first, then the new file from the start. A truncated file
+  is read from the start. Use logrotate's default (rename), not
+  `copytruncate`: if the file is truncated and grows past the old offset
+  before the next run, the start of the new file is skipped.
+
+Run only one `ship_logs` process per log file. The Elasticsearch client's own
+INFO messages are not logged, otherwise every bulk request would add a line
+to the file being shipped.
 
 ## Container registry
 
