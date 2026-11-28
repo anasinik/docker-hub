@@ -1,4 +1,3 @@
-import atexit
 import base64
 import re
 import shutil
@@ -9,46 +8,25 @@ from pathlib import Path
 import jwt
 from cryptography.hazmat.primitives import serialization
 from django.core.management import CommandError, call_command
-from django.test import Client, SimpleTestCase, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase
 from django.urls import reverse
 
 from accounts.models import User
 from repositories.models import Repository, Visibility
 from repositories.services.registry import auth
 from repositories.services.registry.auth import Scope
+from repositories.tests.registry_keys import (
+    ISSUER,
+    KEY_DIR,
+    KEY_PATH,
+    SERVICE,
+    TTL,
+    decode,
+    public_key,
+    token_settings,
+)
 
 PASSWORD = "Tr1cky-pass-2025"
-SERVICE = "test-registry"
-ISSUER = "test-issuer"
-TTL = 120
-
-# Created at import, because override_settings below reads KEY_PATH when the
-# classes are decorated. Removed at exit, not in tearDownModule: the test runner
-# reorders classes (TestCase before SimpleTestCase), so the module is torn down
-# before all of its classes have run.
-_key_dir = tempfile.mkdtemp()
-atexit.register(shutil.rmtree, _key_dir, ignore_errors=True)
-KEY_PATH = Path(_key_dir) / "token.key"
-KEY_PATH.write_bytes(auth.generate_key_pair(ISSUER)[0])
-
-
-def token_settings(**extra):
-    values = {
-        "REGISTRY_TOKEN_SERVICE": SERVICE,
-        "REGISTRY_TOKEN_ISSUER": ISSUER,
-        "REGISTRY_TOKEN_PRIVATE_KEY_PATH": KEY_PATH,
-        "REGISTRY_TOKEN_TTL": TTL,
-    }
-    values.update(extra)
-    return override_settings(**values)
-
-
-def public_key():
-    return serialization.load_pem_private_key(KEY_PATH.read_bytes(), password=None).public_key()
-
-
-def decode(token):
-    return jwt.decode(token, public_key(), algorithms=["RS256"], audience=SERVICE, issuer=ISSUER)
 
 
 def basic_auth(username, password):
@@ -430,7 +408,7 @@ class RegistryTokenViewTests(TestCase):
         self.assertEqual(self.client.put(self.url).status_code, 405)
 
     def test_missing_signing_key_returns_503(self):
-        with token_settings(REGISTRY_TOKEN_PRIVATE_KEY_PATH=Path(_key_dir) / "missing.key"):
+        with token_settings(REGISTRY_TOKEN_PRIVATE_KEY_PATH=KEY_DIR / "missing.key"):
             with self.assertLogs("repositories.views", "ERROR") as logs:
                 response = self.get_token(["repository:alice/web:pull"])
 

@@ -137,9 +137,10 @@ get 404 and admins get 403.
 
 The owner deletes a repository from the "Danger zone" on its settings page, at
 `/repositories/<id>/delete/`. To confirm, the owner types the repository name.
-The repository and its stars are deleted, and the user is redirected to
-"My repositories". Images in the registry will be deleted too once the
-registry is set up.
+The images are deleted from the registry first, then the repository with its
+tags and stars, and the user is redirected to "My repositories". If the registry
+cannot be reached, nothing is deleted and the page shows an error, so old images
+never stay behind for a new repository with the same name.
 
 ## Configuration
 
@@ -167,7 +168,7 @@ for the full list.
 | `ELASTICSEARCH_USERNAME` | `elastic` | Elasticsearch user |
 | `ELASTICSEARCH_LOG_INDEX` | `dockerhub-logs` | Index that stores the logs |
 | `REGISTRY_PORT` | `5000` | Host port of the registry container (`docker compose`) |
-| `REGISTRY_URL` | `http://localhost:5000` | Registry address (`http://registry:5000` inside compose) |
+| `REGISTRY_URL` | `http://127.0.0.1:5000` | Registry address (`http://registry:5000` inside compose); `localhost` is ~2 s slower per call on Windows (IPv6 first) |
 | `REGISTRY_TIMEOUT` | `5` | Seconds to wait for the registry |
 | `REGISTRY_CLIENT_CLASS` | `...mock.MockRegistryClient` | Registry client; `repositories.services.registry.http.HttpRegistryClient` uses the real registry |
 | `REGISTRY_TOKEN_REALM` | `http://host.docker.internal:8000/registry/token/` | Token endpoint address the Docker daemon calls (`docker compose`) |
@@ -175,6 +176,8 @@ for the full list.
 | `REGISTRY_TOKEN_ISSUER` | `dockerhub-token-issuer` | Token issuer; must match `auth.token.issuer` |
 | `REGISTRY_TOKEN_PRIVATE_KEY_PATH` | `docker/registry/auth/token.key` | Key that signs registry tokens |
 | `REGISTRY_TOKEN_TTL` | `300` | Token lifetime in seconds |
+| `REGISTRY_EVENTS_TOKEN` | | Shared secret for registry notifications (tag sync); required by `docker compose`, empty disables `/registry/events/` |
+| `REGISTRY_EVENTS_URL` | `http://host.docker.internal:8000/registry/events/` | Webhook address the registry container calls (`docker compose`) |
 
 ## Logging
 
@@ -440,7 +443,43 @@ python manage.py runserver 0.0.0.0:8000
 The default realm `http://host.docker.internal:8000/registry/token/` then works.
 Set `REGISTRY_TOKEN_REALM` in `.env` and restart the registry when the app runs elsewhere.
 
-Pushed images are not shown in the application yet, and the app uses `MockRegistryClient` by default, so `runserver`, tests and CI work without the container.
+### Tag sync
+
+Tags are shown from the `Tag` table, so repository pages do not call the
+registry. The registry stays the source of truth; the table mirrors it:
+
+- After every push or delete the registry sends a notification to
+  `/registry/events/` (configured in `docker-compose.yml`, authenticated with
+  `REGISTRY_EVENTS_TOKEN`). The app then reads the repository's tags through the
+  registry API: tag list, digest of each tag (`HEAD`), and the manifest only for
+  new or changed digests. A multi-arch push sends one event per platform, but
+  only the tagged index starts a sync.
+- `python manage.py sync_registry` syncs all repositories (`--repository alice/web`
+  for one), e.g. after the app was down while images were pushed.
+
+For each tag the app stores the digest, the manifest type and the compressed
+size (config and layers; summed over platforms for a multi-arch image). The
+registry does not store push times, so "Last pushed" is the time of the push
+event, or of the first sync that saw the digest.
+
+The app talks to the registry with `HttpRegistryClient` (set
+`REGISTRY_CLIENT_CLASS=repositories.services.registry.http.HttpRegistryClient`);
+it signs its own tokens, so it needs the key from `generate_registry_keys`. The
+default `MockRegistryClient` has no images, so `runserver`, tests and CI work
+without the container. With the mock, `/registry/events/` (503) and
+`sync_registry` refuse to sync and log a warning, because a sync against a
+registry without images would delete every tag in the database.
+
+### Deleting images
+
+Deleting a repository deletes its manifests through the registry API. The layer
+files stay on disk until the registry's garbage collector removes them:
+
+```bash
+docker compose exec registry bin/registry garbage-collect /etc/docker/registry/config.yml
+```
+
+Run it when nobody is pushing (pushes during garbage collection can lose layers).
 
 To delete all images, stop and remove the registry container, then remove the `registry_data` volume. Avoid `docker compose down -v` if you want to preserve Elasticsearch logs.
 

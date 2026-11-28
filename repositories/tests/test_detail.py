@@ -6,8 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import User
-from repositories.models import Repository, RepositoryStar, Visibility
-from repositories.services.registry.base import RegistryError
+from repositories.models import Repository, RepositoryStar, Tag, Visibility
 
 PASSWORD = "Tr1cky-pass-2026"
 
@@ -34,23 +33,22 @@ class RepositoryDetailViewTests(TestCase):
         )
 
     def setUp(self):
+        now = timezone.now()
         self.tags = [
-            {
-                "name": "latest",
-                "digest": "sha256:abc123",
-                "pushed_at": timezone.now(),
-            },
-            {
-                "name": "1.0.0",
-                "digest": "sha256:def456",
-                "pushed_at": None,
-            },
+            Tag.objects.create(
+                repository=self.public_repository, name="latest", digest="sha256:abc123", pushed_at=now
+            ),
+            Tag.objects.create(
+                repository=self.public_repository,
+                name="1.0.0",
+                digest="sha256:def456",
+                pushed_at=now - timezone.timedelta(days=1),
+            ),
         ]
 
         self.registry_client = Mock()
-        self.registry_client.list_tags.return_value = self.tags
 
-        # Prevent tests from making actual registry requests.
+        # Tags come from the database (synced on push); the page must not call the registry.
         patcher = patch("repositories.views.get_registry_client", return_value=self.registry_client)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -146,13 +144,12 @@ class RepositoryDetailViewTests(TestCase):
         self.assertTrue(response.context["is_starred"])
         self.assertContains(response, "Starred by you")
 
-    def test_tags_are_retrieved_from_registry(self):
+    def test_tags_are_read_from_database(self):
         response = self.client.get(self.get_detail_url(self.public_repository))
 
-        self.registry_client.list_tags.assert_called_once_with(self.public_repository)
+        self.assertFalse(self.registry_client.method_calls)
 
-        self.assertEqual(response.context["tags"], self.tags)
-        self.assertFalse(response.context["registry_unavailable"])
+        self.assertEqual(list(response.context["tags"]), self.tags)
 
         self.assertContains(response, "latest")
         self.assertContains(response, "1.0.0")
@@ -160,30 +157,19 @@ class RepositoryDetailViewTests(TestCase):
         self.assertContains(response, "sha256:def456")
 
     def test_empty_tag_list_is_displayed(self):
-        self.registry_client.list_tags.return_value = []
+        empty_repository = Repository.objects.create(owner=self.alice, name="empty")
+
+        response = self.client.get(self.get_detail_url(empty_repository))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["tags"]), [])
+        self.assertContains(response, "No tags available")
+
+    def test_only_tags_of_this_repository_are_shown(self):
+        other = Repository.objects.create(owner=self.bob, name="other")
+        Tag.objects.create(repository=other, name="v9", digest="sha256:999", pushed_at=timezone.now())
 
         response = self.client.get(self.get_detail_url(self.public_repository))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["tags"], [])
-        self.assertFalse(response.context["registry_unavailable"])
-        self.assertContains(response, "No tags available")
-
-    def test_registry_error_is_handled(self):
-        self.registry_client.list_tags.side_effect = RegistryError("Registry unavailable")
-
-        with self.assertLogs("repositories.views", level="WARNING") as logs:
-            response = self.client.get(self.get_detail_url(self.public_repository))
-
-        self.assertEqual(logs.records[0].levelname, "WARNING")
-        self.assertEqual(logs.records[0].repo_id, self.public_repository.pk)
-        self.assertIn(
-            f"Registry unavailable, cannot list tags: path=alice/nginx id={self.public_repository.pk} "
-            "error=Registry unavailable",
-            logs.output[0],
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["tags"], [])
-        self.assertTrue(response.context["registry_unavailable"])
-        self.assertContains(response, "Unable to retrieve tags from the container registry.")
+        self.assertEqual([tag.name for tag in response.context["tags"]], ["latest", "1.0.0"])
+        self.assertNotContains(response, "sha256:999")

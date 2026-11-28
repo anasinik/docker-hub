@@ -100,8 +100,9 @@ WSGI_APPLICATION = "dockerhub.wsgi.application"
 REGISTRY_CLIENT_CLASS = os.environ.get(
     "REGISTRY_CLIENT_CLASS", "repositories.services.registry.mock.MockRegistryClient"
 )
-# http://registry:5000 when the app runs inside docker compose
-REGISTRY_URL = os.environ.get("REGISTRY_URL", "http://localhost:5000")
+# http://registry:5000 when the app runs inside docker compose. 127.0.0.1, not
+# localhost: on Windows localhost tries IPv6 first and every call waits ~2 s.
+REGISTRY_URL = os.environ.get("REGISTRY_URL", "http://127.0.0.1:5000")
 REGISTRY_TIMEOUT = float(os.environ.get("REGISTRY_TIMEOUT", "5"))
 
 # Token authentication (/registry/token/). Service and issuer must match
@@ -113,6 +114,9 @@ REGISTRY_TOKEN_PRIVATE_KEY_PATH = Path(
     os.environ.get("REGISTRY_TOKEN_PRIVATE_KEY_PATH") or BASE_DIR / "docker" / "registry" / "auth" / "token.key"
 )
 REGISTRY_TOKEN_TTL = int(os.environ.get("REGISTRY_TOKEN_TTL", "300"))
+# Shared secret the registry sends to /registry/events/ (notifications).
+# Empty disables the endpoint.
+REGISTRY_EVENTS_TOKEN = os.environ.get("REGISTRY_EVENTS_TOKEN", "")
 
 # Database and cache
 # UKS_TEST_DB=ON  -> SQLite + local memory cache (tests, CI, local development)

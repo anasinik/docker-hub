@@ -49,6 +49,20 @@ services:
           create_host_path: false
     environment:
       REGISTRY_AUTH_TOKEN_REALM: ${REGISTRY_TOKEN_REALM:-http://host.docker.internal:8000/registry/token/}
+      # Webhook for tag sync. The registry reads the whole list as YAML; pull
+      # and blob events are not sent.
+      REGISTRY_NOTIFICATIONS_ENDPOINTS: |
+        - name: django
+          url: ${REGISTRY_EVENTS_URL:-http://host.docker.internal:8000/registry/events/}
+          headers:
+            Authorization: [Bearer ${REGISTRY_EVENTS_TOKEN:?Set REGISTRY_EVENTS_TOKEN in .env}]
+          # A sync takes a few registry calls; retries are harmless but wasteful.
+          timeout: 15s
+          threshold: 5
+          backoff: 10s
+          ignore:
+            actions: [pull]
+            mediatypes: [application/octet-stream]
     networks:
       - registry
     healthcheck:
